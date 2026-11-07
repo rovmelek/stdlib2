@@ -33,8 +33,8 @@ Date: 2026-11-07
     - Pipes.covers no longer returns hr_version tables.
     - Github actions run luacheck (with the .luacheckrc of the repository) and busted for all branches and pull requests.
     - LuaObjects are userdata in 2.x: Is.Object, Surface.lookup, Game.get_player/get_force/get_surface, Table.deep_copy and the invalid object check of Event.dispatch no longer index them.
-    - Pipes.pictures uses the 2.x sizes (twice the 1.x ones, scale 0.5) and Pipes.covers uses the 2.x file names without the hr- prefix.
-    - Stale train registry entries are removed when rolling stock dies or is mined, train data set by 2.0.x (keyed by the unit number of the main locomotive) is moved to the train id once.
+    - Pipes.pictures uses the former high resolution sizes with scale 0.5 and Pipes.covers uses the 2.x file names without the hr- prefix.
+    - Trains are registered with register_on_object_destroyed: destroyed trains leave the registry and lose their user data, train data set by 2.0.x (keyed by the unit number of the main locomotive) is moved to the train id once.
   Bugfixes:
     - Orientation.to_direction returned the wrong direction with the 16 value defines.direction.
     - Position.direction_to returned the wrong direction for diagonal deltas.

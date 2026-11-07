@@ -99,6 +99,32 @@ function Trains._on_locomotive_changed()
     end
 end
 
+--- Handler of `on_object_destroyed`: drops a destroyed train from the registry and removes its user data.
+-- Trains are registered with `script.register_on_object_destroyed` when they enter the registry.
+-- @lfunction
+function Trains._on_object_destroyed(event)
+    if event.type ~= defines.target_type.train then
+        return
+    end
+    local registry = Storage.get(Storage.KEYS.train_registry)
+    if registry then
+        registry[event.useful_id] = nil
+    end
+    local entity_data = Storage.get(Storage.KEYS.entity_data)
+    if entity_data then
+        entity_data['train-' .. tostring(event.useful_id)] = nil
+    end
+end
+
+--- Add a train to the registry and ask for a notification when it is destroyed.
+-- @tparam LuaTrain train
+local function register_train(registry, train)
+    registry[train.id] = train
+    if script and script.register_on_object_destroyed then
+        script.register_on_object_destroyed(train)
+    end
+end
+
 --- Get the main locomotive of a train.
 -- @tparam LuaTrain train
 -- @treturn LuaEntity the main locomotive
@@ -187,7 +213,7 @@ function Trains.create_train_registry()
 
     for _, info in pairs(Trains.find_filtered()) do
         if info.train.valid then
-            registry[info.id] = info.train
+            register_train(registry, info.train)
         end
     end
 
@@ -211,7 +237,7 @@ function Trains.on_train_created(event)
         end
     end
 
-    registry[new_id] = event.train
+    register_train(registry, event.train)
 end
 
 --- This needs to be called to register events for this module
@@ -221,13 +247,7 @@ function Trains.register_events()
     Event.register(defines.events.on_train_created, Trains.on_train_created)
 
     -- A train that is removed completely (last rolling stock mined or destroyed) gets no on_train_created
-    local rolling_stock = {}
-    for _, type_name in pairs { 'locomotive', 'cargo-wagon', 'fluid-wagon', 'artillery-wagon' } do
-        rolling_stock[#rolling_stock + 1] = { filter = 'type', type = type_name }
-    end
-    for _, name in pairs { 'on_entity_died', 'on_player_mined_entity', 'on_robot_mined_entity' } do
-        Event.register(defines.events[name], Trains._on_locomotive_changed, nil, nil, { event_filter = rolling_stock })
-    end
+    Event.register(defines.events.on_object_destroyed, Trains._on_object_destroyed)
 
     -- When the mod is initialized the first time
     Event.register(Event.core_events.init_and_config, Trains.create_train_registry)

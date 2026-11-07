@@ -31,7 +31,9 @@ end
 
 --Define pipe connection pipe pictures, not all entities use these. This function needs some work though.
 -- The default sprites are the 2.x (former high resolution) ones: twice the size of the 1.x ones, drawn with scale 0.5.
--- TODO(2.1): the exact pixel sizes are the 1.x sizes doubled, verify them against the 2.x base graphics.
+-- TODO(2.1): the sizes are those of the former high resolution files as remembered from the 1.1 base game and the
+-- shifts are the 1.x ones; verify both against the 2.x files, a rectangle outside its image is a data load error.
+-- Prefer the base game's own pipe picture functions when you have them.
 -- A replacement may give its own `scale`, otherwise the default 0.5 is kept.
 function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_east, replacements)
     local new_pictures = {
@@ -39,8 +41,8 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             {
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-N.png',
                 priority = 'extra-high',
-                width = 70,
-                height = 36,
+                width = 71,
+                height = 38,
                 scale = 0.5,
                 shift = shift_north
             } or
@@ -50,7 +52,7 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-S.png',
                 priority = 'extra-high',
                 width = 88,
-                height = 62,
+                height = 61,
                 scale = 0.5,
                 shift = shift_south
             } or
@@ -59,8 +61,8 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             {
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-W.png',
                 priority = 'extra-high',
-                width = 38,
-                height = 74,
+                width = 39,
+                height = 73,
                 scale = 0.5,
                 shift = shift_west
             } or
@@ -69,7 +71,7 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             {
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-E.png',
                 priority = 'extra-high',
-                width = 40,
+                width = 42,
                 height = 76,
                 scale = 0.5,
                 shift = shift_east

@@ -120,17 +120,40 @@ describe('Trains', function()
             assert.is_nil(script.handlers[defines.events.on_robot_pre_mined])
         end)
 
-        it('prunes trains that were removed completely when rolling stock dies or is mined', function()
+        it('registers trains for destruction and drops them (and their data) when destroyed', function()
             Trains.register_events()
-            for _, name in pairs { 'on_entity_died', 'on_player_mined_entity', 'on_robot_mined_entity' } do
-                local id = defines.events[name]
-                assert.is_function(script.handlers[id])
-                assert.is_table(script.filters[id])
-                storage._train_registry = { [5] = new_train(5, { valid = false }), [6] = new_train(6) }
-                script.raise_event(id, { entity = { valid = true, name = 'locomotive', type = 'locomotive' } })
-                assert.is_nil(storage._train_registry[5])
-                assert.is_not_nil(storage._train_registry[6])
-            end
+            local a, b = new_train(5), new_train(6)
+            game.train_manager.trains = { a, b }
+            Trains.create_train_registry()
+            Trains.set_data(a, 'keep me not')
+            local registered = {}
+            for number, object in pairs(script.object_registrations) do registered[object] = number end
+            assert.is_not_nil(registered[a])
+            assert.is_not_nil(registered[b])
+
+            -- the train is still valid when the event is raised, only the destruction notification counts
+            script.raise_event(defines.events.on_object_destroyed, {
+                registration_number = registered[a], type = defines.target_type.train, useful_id = 5 })
+            assert.is_nil(storage._train_registry[5])
+            assert.is_not_nil(storage._train_registry[6])
+            assert.is_nil(storage._entity_data['train-5'])
+        end)
+
+        it('ignores destroyed objects that are not trains', function()
+            Trains.register_events()
+            storage._train_registry = { [5] = new_train(5) }
+            script.raise_event(defines.events.on_object_destroyed, {
+                registration_number = 1, type = defines.target_type.entity, useful_id = 5 })
+            assert.is_not_nil(storage._train_registry[5])
+        end)
+
+        it('registers a train created by on_train_created for destruction', function()
+            Trains.register_events()
+            local new = new_train(9)
+            script.raise_event(defines.events.on_train_created, { train = new })
+            local found
+            for _, object in pairs(script.object_registrations) do found = found or object == new end
+            assert.is_true(found)
         end)
     end)
 

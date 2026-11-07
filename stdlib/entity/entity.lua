@@ -105,19 +105,22 @@ function Entity._migrate_cleanup()
     if not (Entity.options.auto_cleanup and entity_data and script.register_on_object_destroyed) then
         return
     end
-    local registrations = Storage.get(Storage.KEYS.entity_data_reg, Storage.new_table)
-    local migrated = false
+    -- Collect first: the registrations table (the flag `restore_cleanup` looks at) may only be created together
+    -- with the handler registration, otherwise on_load would register a handler the saving session did not have.
+    local found_entities = {}
     for key in pairs(entity_data) do
         if type(key) == 'number' then
             local found = game.get_entity_by_unit_number(key)
             if found and found.valid then
-                registrations[(script.register_on_object_destroyed(found))] = key
-                migrated = true
+                found_entities[key] = found
             end
         end
     end
-    if migrated then
-        Entity.register_cleanup()
+    if next(found_entities) and Entity.register_cleanup() then
+        local registrations = Storage.get(Storage.KEYS.entity_data_reg, Storage.new_table)
+        for key, found in pairs(found_entities) do
+            registrations[(script.register_on_object_destroyed(found))] = key
+        end
     end
 end
 

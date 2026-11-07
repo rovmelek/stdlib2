@@ -96,6 +96,8 @@ function Env.new_defines()
             combinator_output_red = 3, combinator_output_green = 4, pole_copper = 5,
         },
         train_state = sequence('on_the_path path_lost no_schedule no_path arrive_signal wait_signal arrive_station wait_station manual_control_stop manual_control stop_for_auto_control', 0),
+        -- TODO(2.1): verify the names and values; only the names are used
+        target_type = sequence('entity equipment item tile train space-platform segmented-unit', 0),
         controllers = sequence('ghost character god editor cutscene spectator remote', 0),
         constant = { default_icon_size = 64 },
     }

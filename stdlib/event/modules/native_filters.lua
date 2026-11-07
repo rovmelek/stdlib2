@@ -85,7 +85,7 @@ function NativeFilters.union(filters)
 end
 
 local function entity_of(event)
-    return event.entity or event.created_entity or event.destination
+    return event.entity or event.created_entity or event.destination or event.ghost or event.radar
 end
 
 local function has_name(value, name)

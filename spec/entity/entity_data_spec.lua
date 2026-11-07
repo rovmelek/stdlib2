@@ -115,6 +115,23 @@ describe('Entity data cleanup', function()
         assert.is_function(script.handlers[defines.events.on_object_destroyed])
     end)
 
+    it('does not create the registration flag when a configuration change finds nothing to register', function()
+        storage._entity_data = { ['train-4'] = {}, [11] = 'unknown' }
+        script.raise_event('on_configuration_changed')
+        assert.is_nil(storage._entity_data_reg)
+        assert.is_nil(script.handlers[defines.events.on_object_destroyed])
+
+        -- a load of that save must therefore register nothing either
+        local saved = storage
+        package.remove_stdlib()
+        Env.install()
+        _G.storage = saved
+        Event = require('__stdlib2__/stdlib/event/event')
+        Entity = require('__stdlib2__/stdlib/entity/entity')
+        script.raise_event('on_load')
+        assert.is_nil(script.handlers[defines.events.on_object_destroyed])
+    end)
+
     describe('entities without a unit number', function()
         local function plain(name)
             local e = { valid = true, name = name }
