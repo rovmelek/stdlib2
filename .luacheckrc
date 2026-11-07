@@ -31,3 +31,6 @@ files['spec/'] = {
     globals = { 'io', 'loadfile', 'package', 'script', 'game', 'helpers', 'log', 'remote', 'settings', 'commands', 'rendering', 'prototypes', 'mods' },
     ignore = { '11.', '12.', '14.', '21.', '43.' },
 }
+
+-- The quickstart script changes player and surface settings of the running game
+files['stdlib/scripts/quickstart.lua'] = { globals = { 'game' } }
