@@ -14,6 +14,7 @@
 -- Changes.register('any-first', 'path_to_file_2')
 
 local Event = require('__stdlib2__/stdlib/event/event')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 
 ---@class Changes
 ---@field map_first table
@@ -31,7 +32,7 @@ local Changes = {
 }
 setmetatable(Changes, Changes)
 
-local inspect = _ENV.inspect
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
 
 --[[
     ConfigurationChangedData
@@ -96,7 +97,7 @@ function Changes.on_init()
         for ver in pairs(versions) do
             list[ver] = cur_version
         end
-        storage._changes = list
+        Storage.set(Storage.KEYS.changes, list)
     end
 end
 
@@ -117,7 +118,7 @@ function Changes.on_configuration_changed(event)
 end
 
 function Changes.on_mod_changed(this_mod_changes)
-    storage._changes = storage._changes or {}
+    Storage.get(Storage.KEYS.changes, Storage.new_table)
 
     local old = this_mod_changes.old_version
     if old then -- Find the last installed version
@@ -143,11 +144,11 @@ end
 function Changes.dump_data()
     for change_type in pairs(map_changes) do
         if table.size(Changes[change_type]) > 0 then
-            game.write_file(Changes.get_file_path('Changes/' .. change_type .. '.lua'),
+            helpers.write_file(Changes.get_file_path('Changes/' .. change_type .. '.lua'),
                 'return ' .. inspect(Changes[change_type], { longkeys = true, arraykeys = true }))
         end
     end
-    game.write_file(Changes.get_file_path('Changes/global.lua'), 'return ' .. inspect(storage._changes or nil, { longkeys = true, arraykeys = true }))
+    helpers.write_file(Changes.get_file_path('Changes/storage.lua'), 'return ' .. inspect(storage._changes or nil, { longkeys = true, arraykeys = true }))
 end
 
 return Changes

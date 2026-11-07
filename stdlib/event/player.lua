@@ -14,10 +14,11 @@ local Player = {
 setmetatable(Player, Player)
 
 local Game = require('__stdlib2__/stdlib/game')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 local table = require('__stdlib2__/stdlib/utils/table')
 local merge_additional_data = require('__stdlib2__/stdlib/event/modules/merge_data')
 local assert, type = assert, type
-local inspect = _ENV.inspect
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
 
 -- Return new default player object consiting of index, name, force
 local function new(player_index)
@@ -76,7 +77,7 @@ end
 --- Remove data for a player when they are deleted.
 -- @tparam table event event table containing the `player_index`
 function Player.remove(event)
-    storage.players[event.player_index] = nil
+    Storage.get(Storage.KEYS.players)[event.player_index] = nil
 end
 
 --- Init or re-init a player or players.
@@ -85,7 +86,7 @@ end
 -- @tparam[opt=false] boolean overwrite the player data
 function Player.init(event, overwrite)
     -- Create the storage.players table if it doesn't exisit
-    storage.players = storage.players or {}
+    Storage.get(Storage.KEYS.players, Storage.new_table)
 
     --get a valid player object or nil
     local player = Game.get_player(event)
@@ -110,7 +111,7 @@ function Player.init(event, overwrite)
                 game.print(tostring(msg))
             end
         )
-        storage._print_queue = nil
+        Storage.set(Storage.KEYS.print_queue, nil)
     end
     return Player
 end
@@ -121,8 +122,8 @@ function Player.update_force(event)
 end
 
 function Player.dump_data()
-    game.write_file(Player.get_file_path('Player/player_data.lua'), 'return ' .. inspect(Player._new_player_data, { longkeys = true, arraykeys = true }))
-    game.write_file(Player.get_file_path('Player/storage.lua'), 'return ' .. inspect(storage.players or nil, { longkeys = true, arraykeys = true }))
+    helpers.write_file(Player.get_file_path('Player/player_data.lua'), 'return ' .. inspect(Player._new_player_data, { longkeys = true, arraykeys = true }))
+    helpers.write_file(Player.get_file_path('Player/storage.lua'), 'return ' .. inspect(storage.players or nil, { longkeys = true, arraykeys = true }))
 end
 
 function Player.register_init()

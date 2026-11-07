@@ -11,21 +11,20 @@ local Trains = {
 setmetatable(Trains, Trains)
 
 local Event = require('__stdlib2__/stdlib/event/event')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 local Surface = require('__stdlib2__/stdlib/area/surface')
 local Entity = require('__stdlib2__/stdlib/entity/entity')
 local table = require('__stdlib2__/stdlib/utils/table')
 
 --- This event fires when a train's ID changes.
--- <p>The train ID is a property of the main locomotive,
--- which means that when locomotives are attached or detached from their wagons or from other locomotives, the ID of the train changes.
--- <p>For example: A train with a front and rear locomotives will get its ID
--- from the front locomotive. If the front locomotive gets disconnected, the rear locomotive becomes the main one and the train's ID changes.
+-- <p>The train ID is `LuaTrain.id`. Factorio creates a new train (with a new id) when trains are coupled, split or
+-- otherwise rebuilt; this event is raised from `on_train_created` for every old train id that was known to the registry.
 -- @event on_train_id_changed
 -- @tparam uint old_id the ID of the train before the change
 -- @tparam uint new_id the ID of the train after the change
 -- @usage
 ---- Event.register(Trains.on_train_id_changed, my_handler)
-Trains.on_train_id_changed = Event.generate_event_name()
+Trains.on_train_id_changed = Event.generate_event_name('on_train_id_changed')
 
 --- Given a @{criteria|search criteria}, search for trains that match the criteria.
 -- If ***criteria.surface*** is not supplied, this function searches through all existing surfaces.
@@ -38,41 +37,32 @@ Trains.on_train_id_changed = Event.generate_event_name()
 function Trains.find_filtered(criteria)
     criteria = criteria or {}
 
-    local surface_list = Surface.lookup(criteria.surface)
-    if criteria.surface == nil then
-        surface_list = game.surfaces
+    local results = {}
+    local function collect(filter)
+        for _, train in pairs(game.train_manager.get_trains(filter)) do
+            results[#results + 1] = train
+        end
     end
 
-    local results = {}
-
-    for _, surface in pairs(surface_list) do
-        local trains = surface.get_trains(criteria.force)
-        for _, train in pairs(trains) do
-            table.insert(results, train)
+    if criteria.surface == nil then
+        collect({ force = criteria.force })
+    else
+        for _, surface in pairs(Surface.lookup(criteria.surface)) do
+            collect({ surface = surface, force = criteria.force })
         end
     end
 
     -- Apply state filters
     if criteria.state then
-        results =
-        table.filter(
-            results,
-            function(train)
-                return train.state == criteria.state
-            end
-        )
+        results = table.filter(results, function(train)
+            return train.state == criteria.state
+        end)
     end
 
     -- Lastly, look up the train ids
-    results =
-    table.map(
-        results,
-        function(train)
-            return { train = train, id = Trains.get_main_locomotive(train).unit_number }
-        end
-    )
-
-    return results
+    return table.map(results, function(train)
+        return { train = train, id = train.id }
+    end)
 end
 
 ---
@@ -89,41 +79,49 @@ end
 -- @table train_details
 
 --- Find the ID of a LuaTrain instance.
+-- Since Factorio 2.x this is the stable `LuaTrain.id`.
 -- @tparam LuaTrain train
 -- @treturn uint the ID of the train
 function Trains.get_train_id(train)
-    local loco = Trains.get_main_locomotive(train)
-    return loco and loco.unit_number
+    return train and train.valid and train.id or nil
 end
 
---- Event fired when some change happens to a locomotive.
+--- Remove invalid trains from the registry.
+-- Train ids are renamed by `on_train_created`; this drops the entries of trains that were removed completely and is
+-- called when rolling stock dies or is mined.
 -- @lfunction
 function Trains._on_locomotive_changed()
-    -- For all the known trains
-    local renames = {}
-    for id, train in pairs(storage._train_registry) do
-        -- Check if their known ID is the same as the LuaTrain's dervied id
-        local derived_id = Trains.get_train_id(train)
-        -- If it's not
-        if (id ~= derived_id) then
-            -- Capture the rename
-            table.insert(renames, { old_id = id, new_id = derived_id, train = train })
+    local registry = Storage.get(Storage.KEYS.train_registry) or {}
+    for id, train in pairs(registry) do
+        if not train.valid then
+            registry[id] = nil
         end
     end
+end
 
-    -- Go over the captured renaming operations
-    for _, renaming in pairs(renames) do
-        -- Rename it in the registry
-        -- and dispatch a renamed event
-        storage._train_registry[renaming.new_id] = renaming.train
-        storage._train_registry[renaming.old_id] = nil
+--- Handler of `on_object_destroyed`: drops a destroyed train from the registry and removes its user data.
+-- Trains are registered with `script.register_on_object_destroyed` when they enter the registry.
+-- @lfunction
+function Trains._on_object_destroyed(event)
+    if event.type ~= defines.target_type.train then
+        return
+    end
+    local registry = Storage.get(Storage.KEYS.train_registry)
+    if registry then
+        registry[event.useful_id] = nil
+    end
+    local entity_data = Storage.get(Storage.KEYS.entity_data)
+    if entity_data then
+        entity_data['train-' .. tostring(event.useful_id)] = nil
+    end
+end
 
-        local event_data = {
-            old_id = renaming.old_id,
-            new_id = renaming.new_id,
-            name = Trains.on_train_id_changed
-        }
-        Event.dispatch(event_data)
+--- Add a train to the registry and ask for a notification when it is destroyed.
+-- @tparam LuaTrain train
+local function register_train(registry, train)
+    registry[train.id] = train
+    if script and script.register_on_object_destroyed then
+        script.register_on_object_destroyed(train)
     end
 end
 
@@ -140,7 +138,7 @@ end
 -- @tparam LuaTrain train
 -- @return (<span class="types">@{train_entity}</span>)
 function Trains.to_entity(train)
-    local name = 'train-' .. Trains.get_train_id(train)
+    local name = 'train-' .. tostring(Trains.get_train_id(train))
     return {
         name = name,
         valid = train.valid,
@@ -178,33 +176,78 @@ function Trains.get_data(train)
     return Entity.get_data(Trains.to_entity(train))
 end
 
--- Creates a registry of known trains.
--- @return table a mapping of train id to LuaTrain object
-function Trains.create_train_registry()
-    storage._train_registry = storage._train_registry or {}
-
-    local all_trains = Trains.find_filtered()
-    for _, trainInfo in pairs(all_trains) do
-        storage._train_registry[tonumber(trainInfo.id)] = trainInfo.train
+-- Trains.set_data of stdlib2 2.0.x was keyed by the unit number of the main locomotive ('train-<unit_number>').
+-- Move that data to the 'train-<LuaTrain.id>' keys, once: both are plain numbers, running it twice would mix them up.
+local function migrate_train_data(registry)
+    if Storage.get(Storage.KEYS.train_data_migrated) then
+        return
     end
-
-    return storage._train_registry
+    local entity_data = Storage.get(Storage.KEYS.entity_data)
+    if entity_data then
+        local moved = {}
+        for id, train in pairs(registry) do
+            local locomotive = Trains.get_main_locomotive(train)
+            local old_name = locomotive and locomotive.unit_number and ('train-' .. locomotive.unit_number)
+            local new_name = 'train-' .. id
+            if old_name and old_name ~= new_name and entity_data[old_name] then
+                moved[new_name] = entity_data[old_name]
+                entity_data[old_name] = nil
+            end
+        end
+        for new_name, entries in pairs(moved) do
+            for _, entry in pairs(entries) do
+                entry.entity = Trains.to_entity(registry[tonumber(new_name:sub(7))])
+            end
+            entity_data[new_name] = entries
+        end
+    end
+    Storage.set(Storage.KEYS.train_data_migrated, true)
 end
 
+-- Creates a registry of known trains.
+-- The registry is rebuilt from scratch, so registries saved with the 1.x keys (the unit number of the main
+-- locomotive) are migrated to the `LuaTrain.id` keys.
+-- @return table a mapping of train id to LuaTrain object
+function Trains.create_train_registry()
+    local registry = Storage.set(Storage.KEYS.train_registry, {})
+
+    for _, info in pairs(Trains.find_filtered()) do
+        if info.train.valid then
+            register_train(registry, info.train)
+        end
+    end
+
+    migrate_train_data(registry)
+    return registry
+end
+
+--- Handles `on_train_created`: renames the registry entries of the old trains and registers the new one.
 function Trains.on_train_created(event)
-    local train_id = Trains.get_train_id(event.train)
-    storage._train_registry[train_id] = event.train
+    local registry = Storage.get(Storage.KEYS.train_registry, Storage.new_table)
+    local new_id = event.train.id
+
+    for _, old_id in pairs { event.old_train_id_1, event.old_train_id_2 } do
+        if old_id and registry[old_id] and old_id ~= new_id then
+            registry[old_id] = nil
+            Event.dispatch {
+                old_id = old_id,
+                new_id = new_id,
+                name = Trains.on_train_id_changed
+            }
+        end
+    end
+
+    register_train(registry, event.train)
 end
 
 --- This needs to be called to register events for this module
 -- @treturn Trains
 function Trains.register_events()
-    -- When a locomotive is removed ...
-    local train_remove_events = { defines.events.on_entity_died, defines.events.on_pre_player_mined_item, defines.events.on_robot_pre_mined }
-    Event.register(train_remove_events, Trains._on_locomotive_changed, Event.Filters.entity.type, 'locomotive')
-
-    -- When a locomotive is added ...
+    -- Train ids (and renames) are driven by on_train_created
     Event.register(defines.events.on_train_created, Trains.on_train_created)
+
+    -- A train that is removed completely (last rolling stock mined or destroyed) gets no on_train_created
+    Event.register(defines.events.on_object_destroyed, Trains._on_object_destroyed)
 
     -- When the mod is initialized the first time
     Event.register(Event.core_events.init_and_config, Trains.create_train_registry)

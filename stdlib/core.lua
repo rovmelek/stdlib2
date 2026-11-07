@@ -6,8 +6,27 @@
 -- require global helper functions.
 require('__stdlib2__/stdlib/utils/globals')
 
+-- Version of this library when the game does not tell: keep in sync with info.json (a spec compares them).
+local FALLBACK_VERSION = '2.1.0'
+
+--- The loaded version of stdlib2: the version of the mod in `script.active_mods` (control stage) or `mods` (data and
+-- settings stages), a constant that matches info.json otherwise.
+local function detect_version()
+    local ok, version = pcall(function()
+        local script = rawget(_G, 'script')
+        local active_mods = script and script.active_mods
+        if active_mods then
+            return active_mods['stdlib2']
+        end
+        local mods = rawget(_G, 'mods')
+        return mods and mods['stdlib2']
+    end)
+    return ok and version or FALLBACK_VERSION
+end
+
 local Core = {
-    _VERSION = '1.0.0',
+    _VERSION = detect_version(),
+    _FALLBACK_VERSION = FALLBACK_VERSION,
     _DESCRIPTION = 'Factorio Lua Standard Library Project',
     _URL = 'https://github.com/Afforess/Factorio-Stdlib',
     _LICENSE = [[
@@ -37,6 +56,33 @@ local Core = {
 Core.Unique_Array = require('__stdlib2__/stdlib/utils/classes/unique_array')
 Core.String_Array = Core.Unique_Array
 
+local function compare_versions(a, b)
+    local helpers = rawget(_G, 'helpers')
+    if helpers and helpers.compare_versions then
+        return helpers.compare_versions(a, b)
+    end
+    local pa, pb = {}, {}
+    for n in tostring(a):gmatch('%d+') do pa[#pa + 1] = tonumber(n) end
+    for n in tostring(b):gmatch('%d+') do pb[#pb + 1] = tonumber(n) end
+    for i = 1, math.max(#pa, #pb) do
+        local x, y = pa[i] or 0, pb[i] or 0
+        if x ~= y then
+            return x < y and -1 or 1
+        end
+    end
+    return 0
+end
+
+--- Raise an error if the loaded stdlib2 is older than the version a mod needs.
+-- @tparam string min_version the minimum version, for example `'2.1.0'`
+-- @usage require('__stdlib2__/stdlib/core').require_version('2.1.0')
+function Core.require_version(min_version)
+    assert(type(min_version) == 'string', 'min_version must be a string')
+    if compare_versions(Core._VERSION, min_version) < 0 then
+        error('stdlib2 ' .. min_version .. ' or newer is required, but version ' .. Core._VERSION .. ' is loaded', 2)
+    end
+end
+
 --- Prints and logs the msg
 -- @tparam string msg
 -- @treturn boolean true if the message was printed to someone
@@ -62,8 +108,10 @@ if script then
     end
 end
 
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
+
 local function no_meta(item, path)
-    if path[#path] == _ENV.inspect.METATABLE then
+    if path[#path] == inspect.METATABLE then
         return { item.__class }
     end
     return item
@@ -71,7 +119,7 @@ end
 
 --- Inspect the class
 function Core.inspect(self)
-    return _ENV.inspect(self, { process = no_meta })
+    return inspect(self, { process = no_meta })
 end
 
 --- Help function available on everything.

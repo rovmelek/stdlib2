@@ -7,17 +7,19 @@ local Game = {
     __index = require('__stdlib2__/stdlib/core')
 }
 setmetatable(Game, Game)
-local inspect = _ENV.inspect
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
+local Is = require('__stdlib2__/stdlib/utils/is')
 
 --- Return a valid player object from event, index, string, or userdata
 -- @tparam string|number|LuaPlayer|event mixed
 -- @treturn LuaPlayer a valid player or nil
 function Game.get_player(mixed)
-    if type(mixed) == 'table' then
+    if Is.Object(mixed) then
+        return mixed.valid and mixed
+    elseif type(mixed) == 'table' then
         if mixed.player_index then
             return game.get_player(mixed.player_index)
-        elseif mixed.__self then
-            return mixed.valid and mixed
         end
     elseif mixed then
         return game.get_player(mixed)
@@ -28,10 +30,10 @@ end
 -- @tparam string|LuaForce|event mixed
 -- @treturn LuaForce a valid force or nil
 function Game.get_force(mixed)
-    if type(mixed) == 'table' then
-        if mixed.__self then
-            return mixed and mixed.valid and mixed
-        elseif mixed.force then
+    if Is.Object(mixed) then
+        return mixed.valid and mixed
+    elseif type(mixed) == 'table' then
+        if mixed.force then
             return Game.get_force(mixed.force)
         end
     elseif type(mixed) == 'string' then
@@ -41,10 +43,10 @@ function Game.get_force(mixed)
 end
 
 function Game.get_surface(mixed)
-    if type(mixed) == 'table' then
-        if mixed.__self then
-            return mixed.valid and mixed
-        elseif mixed.surface then
+    if Is.Object(mixed) then
+        return mixed.valid and mixed
+    elseif type(mixed) == 'table' then
+        if mixed.surface then
             return Game.get_surface(mixed.surface)
         end
     elseif mixed then
@@ -70,8 +72,8 @@ function Game.print_all(msg, condition)
         end
         return num
     else
-        storage._print_queue = storage._print_queue or {}
-        storage._print_queue[#storage._print_queue + 1] = msg
+        local queue = Storage.get(Storage.KEYS.print_queue, Storage.new_table)
+        queue[#queue + 1] = msg
     end
 end
 
@@ -84,13 +86,13 @@ end
 -- @treturn mixed the chunk value stored at the key or the previous value
 function Game.get_or_set_data(sub_table, index, key, set, value)
     assert(type(sub_table) == 'string', 'sub_table must be a string')
-    storage[sub_table] = storage[sub_table] or {}
+    local root = Storage.get(sub_table, Storage.new_table)
     local this
     if index then
-        storage[sub_table][index] = storage[sub_table][index] or {}
-        this = storage[sub_table][index]
+        root[index] = root[index] or {}
+        this = root[index]
     else
-        this = storage[sub_table]
+        this = root
     end
     local previous
 
@@ -106,27 +108,42 @@ function Game.get_or_set_data(sub_table, index, key, set, value)
 end
 
 function Game.write_mods()
-    game.write_file('Mods.lua', 'return ' .. inspect(script.active_mods))
+    helpers.write_file('Mods.lua', 'return ' .. inspect(script.active_mods))
 end
 
+--- Write the flow statistics of every force and surface to `script-output/Statistics/<tick>/...`.
+-- <p>Files are written to `Statistics/<tick>/<surface>/<force>/<kind>-<count_type>.json` for
+-- the item, fluid, kill and build statistics and to `Statistics/<tick>/<surface>/pollution-<count_type>.json`.
 function Game.write_statistics()
     local pre = 'Statistics/' .. game.tick .. '/'
-    for _, force in pairs(game.forces) do
-        local folder = pre .. force.name .. '/'
+    local kinds = {
+        item = 'get_item_production_statistics',
+        fluid = 'get_fluid_production_statistics',
+        kill = 'get_kill_count_statistics',
+        build = 'get_entity_build_count_statistics'
+    }
+    for _, surface in pairs(game.surfaces) do
+        local surface_folder = pre .. surface.name .. '/'
+        local pollution = game.get_pollution_statistics(surface)
         for _, count_type in pairs { 'input_counts', 'output_counts' } do
-            game.write_file(folder .. 'pollution-' .. count_type .. '.json', game.table_to_json(game.pollution_statistics[count_type]))
-            game.write_file(folder .. 'item-' .. count_type .. '.json', game.table_to_json(force.item_production_statistics[count_type]))
-            game.write_file(folder .. 'fluid-' .. count_type .. '.json', game.table_to_json(force.fluid_production_statistics[count_type]))
-            game.write_file(folder .. 'kill-' .. count_type .. '.json', game.table_to_json(force.kill_count_statistics[count_type]))
-            game.write_file(folder .. 'build-' .. count_type .. '.json', game.table_to_json(force.entity_build_count_statistics[count_type]))
+            if pollution then
+                helpers.write_file(surface_folder .. 'pollution-' .. count_type .. '.json', helpers.table_to_json(pollution[count_type]))
+            end
+            for _, force in pairs(game.forces) do
+                local folder = surface_folder .. force.name .. '/'
+                for kind, getter in pairs(kinds) do
+                    local stats = force[getter](surface)
+                    helpers.write_file(folder .. kind .. '-' .. count_type .. '.json', helpers.table_to_json(stats[count_type]))
+                end
+            end
         end
     end
 end
 
 function Game.write_surfaces()
-    game.remove_path('surfaces')
+    helpers.remove_path('surfaces')
     for _, surface in pairs(game.surfaces) do
-        game.write_file('surfaces/' .. (surface.name or surface.index) .. '.lua', 'return ' .. inspect(surface.map_gen_settings))
+        helpers.write_file('surfaces/' .. (surface.name or surface.index) .. '.lua', 'return ' .. inspect(surface.map_gen_settings))
     end
 end
 

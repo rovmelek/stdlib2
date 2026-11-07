@@ -435,7 +435,7 @@ metatable = {
     __le = Color.less_than_eq,
     __len = Color.len,
     __tostring = Color.to_string,
-    __concat = _ENV.concat
+    __concat = require('__stdlib2__/stdlib/utils/globals').concat
 }
 
 return Color

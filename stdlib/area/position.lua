@@ -852,9 +852,9 @@ function Position.direction_to(pos1, pos2)
         else
             local adx, ady = abs(dx), abs(dy)
             if adx > ady then
-                return dx > 0 and directions.north or directions.south
+                return dx > 0 and directions.west or directions.east
             else
-                return dy > 0 and directions.west or directions.east
+                return dy > 0 and directions.north or directions.south
             end
         end
     else
@@ -865,7 +865,7 @@ end
 --- Returns the direction to a position.
 -- @tparam Concepts.Position pos1
 -- @tparam Concepts.Position pos2
--- @tparam boolean eight_way return the eight way direction
+-- @tparam[opt] boolean|string eight_way return the eight way direction, or all 16 directions when `'sixteen_way'`
 -- @treturn defines.direction
 function Position.complex_direction_to(pos1, pos2, eight_way)
     return Orientation.to_direction(Position.orientation_to(pos1, pos2), eight_way)
@@ -939,7 +939,7 @@ metatable = {
     __lt = Position.less_than, -- Is position1 less than position2.
     __le = Position.less_than_eq, -- Is position1 less than or equal to position2.
     __tostring = Position.to_string, -- Returns a string representation of the position
-    __concat = _ENV.concat, -- calls tostring on both sides of concact.
+    __concat = require('__stdlib2__/stdlib/utils/globals').concat, -- calls tostring on both sides of concact.
     __call = Position.new, -- copy the position.
     __debugline = [[<Position>{[}x={x},y={y}{]}]]
 }

@@ -49,7 +49,10 @@ local _mt = {
 }
 
 setmetatable(lightcolor, _mt)
-_G.defines = _G.defines or {}
-_G.defines.lightcolor = lightcolor
+-- With config.no_globals the defines table is left alone, use the return value of this module instead.
+if not require('__stdlib2__/stdlib/config').no_globals then
+    _G.defines = _G.defines or {}
+    _G.defines.lightcolor = lightcolor
+end
 
 return lightcolor

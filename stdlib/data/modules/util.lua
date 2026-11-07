@@ -44,14 +44,23 @@ function Util.duplicate(data_type, orig_name, new_name, mining_result)
             if proto.minable and proto.minable.result then
                 proto.minable.result = mining_result
             end
+            local results = proto.minable and proto.minable.results
+            if results then
+                for _, result in pairs(results) do
+                    if result.name == orig_name then
+                        result.name = mining_result
+                    end
+                end
+            end
         end
 
         if proto.place_result then
             proto.place_result = new_name
         end
 
-        if proto.result then
-            proto.result = new_name
+        -- recipes: rename the result only when it is unambiguous
+        if proto.type == 'recipe' and proto.results and #proto.results == 1 then
+            proto.results[1].name = new_name
         end
 
         return (proto)
@@ -67,7 +76,7 @@ end
 -- @usage
 -- require('__stdlib2__/stdlib/data/data).util.create_data_globals()
 function Util.create_data_globals(files)
-    _ENV.STDLIB.create_stdlib_data_globals(files)
+    require('__stdlib2__/stdlib/utils/globals').create_stdlib_data_globals(files)
 end
 
 return Util

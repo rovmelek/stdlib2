@@ -63,9 +63,15 @@ function Inventory.copy_as_simple_stacks(src, dest, clear)
             local simple_stack = {
                 name = stack.name,
                 count = stack.count,
+                quality = stack.quality and stack.quality.name,
                 health = stack.health or 1,
                 durability = stack.durability
             }
+            -- spoil_percent is readable on every stack and is 0 for items that do not spoil
+            local spoil_percent = stack.spoil_percent
+            if spoil_percent and spoil_percent > 0 then
+                simple_stack.spoil_percent = spoil_percent
+            end
             -- ammo is a special case field, accessing it on non-ammo itemstacks causes an exception
             simple_stack.ammo = stack.prototype.magazine_size and stack.ammo
 
@@ -80,6 +86,35 @@ function Inventory.copy_as_simple_stacks(src, dest, clear)
         src.clear()
     end
     return left_over
+end
+
+--- The contents of an inventory by item name, adding up all qualities.
+-- <p>`LuaInventory.get_contents()` returns an array of `{name, quality, count}` since 2.0.
+-- @tparam LuaInventory inventory
+-- @treturn table a dictionary of item name to total count
+function Inventory.get_contents_by_name(inventory)
+    local contents = {}
+    for _, item in pairs(inventory.get_contents()) do
+        contents[item.name] = (contents[item.name] or 0) + item.count
+    end
+    return contents
+end
+
+--- The contents of an inventory by item name and quality.
+-- @tparam LuaInventory inventory
+-- @treturn table a dictionary of item name to a dictionary of quality name to count
+function Inventory.get_contents_by_quality(inventory)
+    local contents = {}
+    for _, item in pairs(inventory.get_contents()) do
+        local by_quality = contents[item.name]
+        if not by_quality then
+            by_quality = {}
+            contents[item.name] = by_quality
+        end
+        local quality = item.quality or 'normal'
+        by_quality[quality] = (by_quality[quality] or 0) + item.count
+    end
+    return contents
 end
 
 --- Return a blueprint stack from either stack or blueprint_book
@@ -116,6 +151,10 @@ end
 -- @return the item or filter
 function Inventory.get_item_or_filter(inventory, idx, item_only, filter_only)
     local filter = not item_only and inventory.get_filter(idx)
+    -- since 2.0 filters are ItemFilter tables
+    if type(filter) == 'table' then
+        filter = filter.name
+    end
     return filter or (not filter_only and inventory[idx].valid_for_read and inventory[idx].name) or nil
 end
 
@@ -150,7 +189,7 @@ end
 -- @tparam LuaInventory destination
 function Inventory.swap_inventory(source, destination)
     for i = 1, min(#destination, #source) do
-        destination[i].swap_stack(source[1])
+        destination[i].swap_stack(source[i])
     end
 end
 

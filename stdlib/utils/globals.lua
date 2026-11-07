@@ -14,7 +14,18 @@ local STDLIB = {
     String = String,
     Table = Table
 }
-rawset(_ENV, 'STDLIB', STDLIB)
+
+-- The helper functions are fields of STDLIB (the return value of this module). Unless config.no_globals is set they
+-- are also added to the global environment.
+local function set_global(name, value)
+    STDLIB[name] = value
+    if not config.no_globals then
+        rawset(_ENV, name, value)
+    end
+end
+if not config.no_globals then
+    rawset(_ENV, 'STDLIB', STDLIB)
+end
 
 --Since debug can be overridden we define a fallback function here.
 local ignored = {
@@ -26,7 +37,7 @@ local traceback = type(debug) == 'table' and debug.traceback or function()
     return ''
 end
 
-rawset(_ENV, 'traceback', traceback)
+set_global('traceback', traceback)
 
 local data_traceback = type(debug) == 'table' and debug.getinfo and function()
     local str = {}
@@ -51,12 +62,12 @@ local data_traceback = type(debug) == 'table' and debug.getinfo and function()
 end or function()
     return ''
 end
-rawset(_ENV, 'data_traceback', data_traceback)
+set_global('data_traceback', data_traceback)
 
 local inspect = require('__stdlib2__/stdlib/vendor/inspect')
-rawset(_ENV, 'inspect', inspect)
+set_global('inspect', inspect)
 
--- Defines Mutates
+-- Defines Mutates (they check config.no_globals themselves)
 require('__stdlib2__/stdlib/utils/defines/color')
 require('__stdlib2__/stdlib/utils/defines/anticolor')
 require('__stdlib2__/stdlib/utils/defines/lightcolor')
@@ -74,7 +85,7 @@ local function prequire(module, suppress_all)
         error(err)
     end
 end
-rawset(_ENV, 'prequire', prequire)
+set_global('prequire', prequire)
 
 --- Temporarily removes __tostring handlers and calls tostring
 -- @tparam mixed t object to call rawtostring on
@@ -91,7 +102,7 @@ local function rawtostring(t)
         return tostring(t)
     end
 end
-rawset(_ENV, 'rawtostring', rawtostring)
+set_global('rawtostring', rawtostring)
 
 --- Returns t if the expression is true. f if false
 -- @tparam mixed exp The expression to evaluate
@@ -105,12 +116,12 @@ local function inline_if(exp, t, f)
         return f
     end
 end
-rawset(_ENV, 'inline_if', inline_if)
+set_global('inline_if', inline_if)
 
 local function concat(lhs, rhs)
     return tostring(lhs) .. tostring(rhs)
 end
-rawset(_ENV, 'concat', concat)
+set_global('concat', concat)
 
 --- install the Table library into global table
 function STDLIB.install_table()
@@ -136,13 +147,15 @@ end
 
 --- Install Math, String, Table into their global counterparts.
 function STDLIB.install_global_utils()
-    STDLIB.install.math()
-    STDLIB.install.string()
-    STDLIB.install.table()
+    STDLIB.install_math()
+    STDLIB.install_string()
+    STDLIB.install_table()
 end
 
---- Reload a required file, NOT IMPLEMENTED
+--- Reload a required file, NOT IMPLEMENTED.
+-- @deprecated this never did anything
 function STDLIB.reload_class()
+    require('__stdlib2__/stdlib/utils/deprecate').warn('stdlib-reload-class', 'STDLIB.reload_class() does nothing and will be removed')
 end
 
 --- load the stdlib into globals, by default it loads everything into an ALLCAPS name.

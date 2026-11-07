@@ -5,7 +5,7 @@ local Data, Raw, R, F --luacheck: ignore Raw
 describe('Data', function()
 
     before_each(function()
-        require('faketorio/dataloader')
+        require('spec/setup/data_fixtures').reset()
         Data = require('__stdlib2__/stdlib/data/data')
         Raw = _G["data"].raw["recipe"]
         R = Data("stone-furnace", "recipe")

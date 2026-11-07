@@ -350,10 +350,18 @@ M.alpha = M.AlphanumWord
 M.alphanumword = M.AlphanumWord
 
 --- Is this a factorio object
+-- <p>Since Factorio 2.0 every LuaObject is `userdata`; reading an unknown key from one raises an error, so this never indexes it.
+-- Tables flagged with `__self` are still accepted so 1.x style fakes keep working.
 -- @tparam LuaObject var The variable to check
 -- @treturn mixed the var if this is an LuaObject
 function M.Object(var)
-    return M.Table(var) and var.__self and var
+    local t = type(var)
+    if t == 'userdata' then
+        return var
+    elseif t == 'table' and var.__self then
+        return var
+    end
+    return false
 end
 M.object = M.Object
 

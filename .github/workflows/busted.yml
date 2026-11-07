@@ -1,19 +1,19 @@
 name: busted
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v4
 
-    - uses: leafo/gh-actions-lua@v5
+    - uses: leafo/gh-actions-lua@v10
       with:
         luaVersion: "5.2"
 
-    - uses: leafo/gh-actions-luarocks@v2
+    - uses: leafo/gh-actions-luarocks@v5
 
     - name: setup
       run: |

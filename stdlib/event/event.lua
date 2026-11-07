@@ -13,6 +13,10 @@
 -- @module Event.Event
 -- @usage local Event = require('__stdlib2__/stdlib/event/event')
 
+local Stage = require('__stdlib2__/stdlib/utils/stage')
+local Is = require('__stdlib2__/stdlib/utils/is')
+Stage.assert('control', 'Event')
+
 local config = require('__stdlib2__/stdlib/config')
 config.control = true
 
@@ -22,6 +26,7 @@ local Event = {
     custom_events = {}, -- Holds custom event ids
     stop_processing = {}, -- just has to be unique
     Filters = require('__stdlib2__/stdlib/event/modules/event_filters'),
+    NativeFilters = require('__stdlib2__/stdlib/event/modules/native_filters'),
     __index = require('__stdlib2__/stdlib/core')
 }
 setmetatable(Event, Event)
@@ -29,7 +34,9 @@ setmetatable(Event, Event)
 Event.options = {
     protected_mode = false,
     skip_valid = false,
-    force_crc = false -- Requires debug_mode to be true
+    force_crc = false, -- Requires debug_mode to be true
+    -- Deprecated: set event.created_entity (the 1.x field name) on build events. Factorio 2.x uses event.entity.
+    legacy_created_entity = true
 }
 local Event_options_meta = { __index = Event.options }
 
@@ -52,9 +59,11 @@ Event.script = {
     on_configuration_changed = script.on_configuration_changed,
     generate_event_name = script.generate_event_name,
     get_event_handler = script.get_event_handler,
+    set_event_filter = script.set_event_filter,
 }
 
 local Type = require('__stdlib2__/stdlib/utils/type')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 local table = require('__stdlib2__/stdlib/utils/table')
 
 local assert, type, tonumber = assert, type, tonumber
@@ -73,7 +82,13 @@ local bootstrap_events = {
         Event.dispatch { name = 'on_init' }
     end,
     on_load = function()
-        Event.dispatch { name = 'on_load', tick = -1 }
+        -- storage is read only in on_load, Storage raises a clear error on writes
+        Storage.loading = true
+        local ok, err = pcall(Event.dispatch, { name = 'on_load', tick = -1 })
+        Storage.loading = false
+        if not ok then
+            error(err, 0)
+        end
     end,
     on_configuration_changed = function(event)
         event.name = 'on_configuration_changed'
@@ -94,11 +109,42 @@ local function id_to_name(name)
     return event_names[name] or table.invert(Event.custom_events)[name] or name or 'unknown'
 end
 
+-- Build events that used to carry `created_entity`. Value is the 2.x field holding the entity.
 local stupid_events = {
     [defines.events.script_raised_revive] = 'entity',
     [defines.events.script_raised_built] = 'entity',
-    [defines.events.on_entity_cloned] = 'destination'
+    [defines.events.on_entity_cloned] = 'destination',
+    [defines.events.on_built_entity] = 'entity',
+    [defines.events.on_robot_built_entity] = 'entity',
+    [defines.events.on_space_platform_built_entity] = 'entity'
 }
+
+-- Recompute the native event filter of an event from its handlers.
+-- All handlers must have a native filter for Factorio to filter the event, otherwise the filter is removed.
+-- `registry.exact` tells dispatch if a handler can trust that Factorio only sent events matching its filter.
+local function update_native_filter(event_id)
+    local registry = Event.registry[event_id]
+    if not registry or not Event.NativeFilters.is_supported(event_id) then
+        return
+    end
+
+    local filters, distinct, all_filtered = {}, {}, true
+    for _, registered in ipairs(registry) do
+        local native = rawget(registered.options, 'event_filter')
+        if native then
+            filters[#filters + 1] = native
+            distinct[native] = true
+        else
+            all_filtered = false
+        end
+    end
+
+    local union = all_filtered and #filters > 0 and Event.NativeFilters.union(filters) or nil
+    registry.native_exact = union ~= nil and table.size(distinct) == 1
+    if Event.script.set_event_filter then
+        Event.script.set_event_filter(event_id, union)
+    end
+end
 
 --- Registers a handler for the given events.
 -- If a `nil` handler is passed, remove the given events and stop listening to them.
@@ -119,6 +165,8 @@ local stupid_events = {
 -- @tparam[opt=nil] function filter a function whose return determines if the handler is executed. event and pattern are passed into this
 -- @tparam[opt=nil] mixed pattern an invariant that can be used in the filter function, passed as the second parameter to your filter
 -- @tparam[opt=nil] table options a table of options that take precedence over the module options.
+-- `options.event_filter` may hold a native `EventFilter` array (only for events that support filters), see @{Event.Filters.native}.
+-- Pass it identically on every load, like the filters of `script.on_event`.
 -- @return (<span class="types">@{Event}</span>) Event module object allowing for call chaining
 function Event.register(event_id, handler, filter, pattern, options)
     assert(event_id, 'missing event_id argument')
@@ -131,12 +179,18 @@ function Event.register(event_id, handler, filter, pattern, options)
     --Recursively handle event id tables
     if Type.Table(event_id) then
         for _, id in pairs(event_id) do
-            Event.register(id, handler)
+            Event.register(id, handler, filter, pattern, options)
         end
         return Event
     end
 
     assert(valid_id(event_id), 'event_id is invalid')
+
+    local native_filter = rawget(options, 'event_filter')
+    if native_filter then
+        assert(Event.NativeFilters.is_supported(event_id), 'event ' .. id_to_name(event_id) .. ' does not support event_filter')
+        Event.NativeFilters.validate(native_filter)
+    end
 
     -- If the event_id has never been registered before make sure we call the correct script action to register
     -- our Event handler with factorio
@@ -181,6 +235,7 @@ function Event.register(event_id, handler, filter, pattern, options)
 
     --Finally insert the handler
     table.insert(registry, { handler = handler, filter = filter, pattern = pattern, options = options })
+    update_native_filter(event_id)
     return Event
 end
 
@@ -201,7 +256,7 @@ function Event.remove(event_id, handler, filter, pattern)
     -- Handle recursion here
     if Type.Table(event_id) then
         for _, id in pairs(event_id) do
-            Event.remove(id, handler)
+            Event.remove(id, handler, filter, pattern)
         end
         return Event
     end
@@ -254,7 +309,11 @@ function Event.remove(event_id, handler, filter, pattern)
             end
         end
 
-        if found_something and table.size(registry) == 0 then
+        if found_something and #registry > 0 then
+            update_native_filter(event_id)
+        end
+
+        if found_something and #registry == 0 then
             -- Clear the registry data and un subscribe if there are no registered handlers left
             Event.registry[event_id] = nil
 
@@ -413,7 +472,10 @@ function Event.dispatch(event)
 
         -- Some events are just stupid and need more help
         if stupid_events[event.name] then
-            event.created_entity = event.created_entity or event.entity or event.destination
+            event.entity = event.entity or event.destination
+            if Event.options.legacy_created_entity then
+                event.created_entity = event.created_entity or event.entity
+            end
         end
 
         for _, registered in ipairs(registry) do
@@ -423,10 +485,17 @@ function Event.dispatch(event)
             -- This is done inside the loop as other events can modify the event.
             if not event.options.skip_valid then
                 for _, val in pairs(event) do
-                    if type(val) == 'table' and val.__self and not val.valid then
+                    if Is.Object(val) and not val.valid then
                         return
                     end
                 end
+            end
+
+            -- Native filters are re-checked in Lua when other handlers widened the filter Factorio applies.
+            -- This runs after the validity check because the filter reads the (possibly destroyed) entity.
+            local native = rawget(registered.options, 'event_filter')
+            if native and not registry.native_exact and not Event.NativeFilters.matches(event, native) then
+                goto continue
             end
 
             -- Dispatch the event, if the event return Event.stop_processing don't process any more events
@@ -438,6 +507,7 @@ function Event.dispatch(event)
                 log('CRC check called for event [' .. event.name .. ']')
                 game.force_crc()
             end
+            ::continue::
         end
     end
 end

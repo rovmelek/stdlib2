@@ -1,7 +1,7 @@
 require('spec/setup/busted')()
 
-local World = require('faketorio/world')
-World.init()
+local World = require('spec/setup/world')
+World.bootstrap()
 
 local Event = require('__stdlib2__/stdlib/event/event')
 local Gui = require('__stdlib2__/stdlib/event/gui')

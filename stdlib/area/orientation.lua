@@ -27,14 +27,18 @@ Orientation.southwest = defines.direction.southwest / 16
 
 local floor = math.floor
 
---- Returns a 4way or 8way direction from an orientation.
+--- Returns a direction from an orientation.
+-- Directions are the 16 value `defines.direction` of Factorio 2.x (north = 0, east = 4, south = 8, west = 12).
 -- @tparam float orientation
--- @tparam[opt=false] boolean eight_way
+-- @tparam[opt=false] boolean|string eight_way true for 8-way directions, `'sixteen_way'` for all 16 directions, otherwise 4-way
 -- @treturn defines.direction
 function Orientation.to_direction(orientation, eight_way)
-    local ways = eight_way and 16 or 8
-    local mod = eight_way and 2 or 4
-    return floor(orientation * ways + 0.5) % ways * mod
+    if eight_way == 'sixteen_way' then
+        return floor(orientation * 16 + 0.5) % 16
+    elseif eight_way then
+        return floor(orientation * 8 + 0.5) % 8 * 2
+    end
+    return floor(orientation * 4 + 0.5) % 4 * 4
 end
 
 --- Returns the opposite orientation.
