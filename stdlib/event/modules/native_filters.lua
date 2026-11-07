@@ -9,17 +9,19 @@ local NativeFilters = {
 }
 
 -- The events that take an EventFilter (the `Lua*EventFilter` concepts of events.html).
--- TODO(2.1): verify against the events page of the 2.1 API, it lists the filter next to each event.
+-- A false entry makes `script.set_event_filter` raise, a missing one only means the handler is filtered in Lua, so
+-- only events with a documented filter concept are listed (doc/factorio-2.1/runtime-core.md).
+-- TODO(2.1): the segmented unit events (LuaSegmentedUnit*EventFilter) are left out until their event names are confirmed.
 -- Other mods may add events with `NativeFilters.supported[defines.events.some_event] = true`.
 NativeFilters.supported = {}
 for _, name in pairs {
-    'on_biter_base_built', 'on_built_entity', 'on_cancelled_deconstruction', 'on_cancelled_upgrade',
+    'on_built_entity', 'on_cancelled_deconstruction', 'on_cancelled_upgrade',
     'on_entity_cloned', 'on_entity_damaged', 'on_entity_died', 'on_marked_for_deconstruction',
-    'on_marked_for_upgrade', 'on_player_mined_entity', 'on_post_entity_died', 'on_pre_ghost_deconstructed',
-    'on_pre_ghost_upgraded', 'on_pre_player_mined_item', 'on_robot_built_entity', 'on_robot_mined_entity',
-    'on_robot_pre_mined', 'on_script_trigger_effect', 'on_sector_scanned', 'on_segment_entity_created',
-    'on_space_platform_built_entity', 'on_space_platform_mined_entity', 'on_space_platform_pre_mined',
-    'on_trigger_created_entity', 'script_raised_built', 'script_raised_destroy', 'script_raised_revive'
+    'on_marked_for_upgrade', 'on_player_mined_entity', 'on_player_repaired_entity', 'on_post_entity_died',
+    'on_pre_ghost_deconstructed', 'on_pre_ghost_upgraded', 'on_pre_player_mined_item', 'on_robot_built_entity',
+    'on_robot_mined_entity', 'on_robot_pre_mined', 'on_sector_scanned', 'on_space_platform_built_entity',
+    'on_space_platform_mined_entity', 'on_space_platform_pre_mined', 'script_raised_built',
+    'script_raised_destroy', 'script_raised_revive', 'script_raised_teleported'
 } do
     local id = defines.events[name]
     if id then
@@ -101,6 +103,9 @@ local function evaluate(entry, event)
     local entity = entity_of(event)
     if not entity then
         return nil
+    end
+    if entity.valid == false then
+        return false -- an invalid LuaEntity raises on any other read
     end
     local is_ghost = entity.type == 'entity-ghost' or entity.type == 'tile-ghost'
     local key = entry.filter

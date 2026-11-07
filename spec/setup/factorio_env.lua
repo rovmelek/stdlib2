@@ -90,7 +90,11 @@ function Env.new_defines()
         events = sequence(event_names, 0),
         direction = direction,
         inventory = sequence(inventory_names, 1),
-        wire_connector_id = sequence('circuit_red circuit_green combinator_input_red combinator_input_green combinator_output_red combinator_output_green pole_copper', 1),
+        -- the real values alias: circuit_red == combinator_input_red and circuit_green == combinator_input_green
+        wire_connector_id = {
+            circuit_red = 1, circuit_green = 2, combinator_input_red = 1, combinator_input_green = 2,
+            combinator_output_red = 3, combinator_output_green = 4, pole_copper = 5,
+        },
         train_state = sequence('on_the_path path_lost no_schedule no_path arrive_signal wait_signal arrive_station wait_station manual_control_stop manual_control stop_for_auto_control', 0),
         controllers = sequence('ghost character god editor cutscene spectator remote', 0),
         constant = { default_icon_size = 64 },
@@ -298,9 +302,40 @@ function Env.create_players(count)
     end
 end
 
---- A table that looks like a LuaObject to code that checks `__self` and `valid`.
-function Env.fake_userdata()
-    return { __self = true, valid = true }
+--- Create a fake LuaObject that behaves like the 2.x ones: a real `userdata` that raises when an unknown key is
+-- read and, once `valid` is false, on every read except `valid` itself.
+-- <p>Lua 5.2 has no `newproxy`, so a throw away file handle is used and given its own metatable.
+-- @tparam[opt] table fields the attributes of the object (`valid` defaults to true). Set `obj.valid = false` to
+-- invalidate it; writes go to the same table.
+-- @treturn userdata
+function Env.new_object(fields)
+    fields = fields or {}
+    if fields.valid == nil then fields.valid = true end
+    local ok, handle = pcall(io.tmpfile)
+    if not ok or not handle then
+        handle = io.open('/dev/null', 'r')
+    end
+    local mt = {
+        __index = function(_, key)
+            if key ~= 'valid' and not fields.valid then
+                error('LuaObject API call when LuaObject was invalid', 2)
+            end
+            local value = fields[key]
+            if value == nil and key ~= 'valid' then
+                error('LuaObject doesn\'t contain key ' .. tostring(key), 2)
+            end
+            return value
+        end,
+        __newindex = function(_, key, value) fields[key] = value end,
+        __metatable = false,
+    }
+    debug.setmetatable(handle, mt)
+    return handle, fields
+end
+
+--- A userdata LuaObject, see `new_object`.
+function Env.fake_userdata(fields)
+    return (Env.new_object(fields))
 end
 
 --- Mimic faketorio's `World.bootstrap()` for the control stage.

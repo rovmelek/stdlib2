@@ -37,7 +37,7 @@ This version (2.1.x) supports **Factorio 2.1**. It needs `base >= 2.1.0`. Use an
   handler of an event has a native filter, the union is passed to `script.set_event_filter`, otherwise the event is not
   filtered natively. Handlers only see events that match their own filter. Pass the same `event_filter` on every load.
 - **Entity data cleanup.** `Entity.options.auto_cleanup` (default `true`) removes `Entity.set_data` data when the entity
-  is destroyed. Require the `Event` module before the `Entity` module so the cleanup is restored in `on_load`.
+  is destroyed. **Require the `Event` module in the main chunk of `control.lua` before the `Entity` module**: the `on_load` restore and the `on_configuration_changed` migration are only hooked when `Event` is already loaded, and `require` is not allowed once the game runs, so the cleanup stays off (with a log message) otherwise.
 - **No globals.** Set `require('__stdlib2__/stdlib/config').no_globals = true` before requiring other stdlib2 modules to
   stop stdlib2 from adding `inspect`, `traceback`, `data_traceback`, `prequire`, `rawtostring`, `inline_if`, `concat`
   and `STDLIB` to the global environment and `color`, `anticolor`, `lightcolor` and `time` to `defines`. Get them from

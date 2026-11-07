@@ -116,9 +116,44 @@ describe('Trains', function()
 
         it('does not register the removed locomotive listeners', function()
             Trains.register_events()
-            assert.is_nil(script.handlers[defines.events.on_entity_died])
             assert.is_nil(script.handlers[defines.events.on_pre_player_mined_item])
             assert.is_nil(script.handlers[defines.events.on_robot_pre_mined])
+        end)
+
+        it('prunes trains that were removed completely when rolling stock dies or is mined', function()
+            Trains.register_events()
+            for _, name in pairs { 'on_entity_died', 'on_player_mined_entity', 'on_robot_mined_entity' } do
+                local id = defines.events[name]
+                assert.is_function(script.handlers[id])
+                assert.is_table(script.filters[id])
+                storage._train_registry = { [5] = new_train(5, { valid = false }), [6] = new_train(6) }
+                script.raise_event(id, { entity = { valid = true, name = 'locomotive', type = 'locomotive' } })
+                assert.is_nil(storage._train_registry[5])
+                assert.is_not_nil(storage._train_registry[6])
+            end
+        end)
+    end)
+
+    describe('train data of stdlib2 2.0.x', function()
+        local function train_with_loco(id, unit_number)
+            return new_train(id, { locomotives = { front_movers = { { unit_number = unit_number } }, back_movers = {} } })
+        end
+
+        it('is moved from the locomotive unit number to the train id once', function()
+            local entry = { entity = { name = 'train-42' }, data = { stops = 3 } }
+            storage._entity_data = { ['train-42'] = { entry } }
+            game.train_manager.trains = { train_with_loco(7, 42) }
+
+            Trains.create_train_registry()
+            assert.is_nil(storage._entity_data['train-42'])
+            assert.same({ stops = 3 }, Trains.get_data(game.train_manager.trains[1]))
+            assert.is_true(storage._train_data_migrated)
+
+            -- a later rebuild must not move data again: 'train-7' now belongs to the train with id 7
+            storage._entity_data['train-9'] = { { entity = { name = 'train-9' }, data = 'other' } }
+            game.train_manager.trains = { train_with_loco(7, 9) }
+            Trains.create_train_registry()
+            assert.same('other', storage._entity_data['train-9'][1].data)
         end)
     end)
 end)

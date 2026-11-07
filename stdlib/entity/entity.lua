@@ -64,18 +64,21 @@ function Entity._on_object_destroyed(event)
 end
 
 local cleanup_registered_with
+local warned_no_event
 
 --- Register the cleanup handler of destroyed entities with the Event module.
--- This is called automatically when data is stored. Call it from `on_load` yourself if you do not load the
--- @{Event} module before this module.
+-- This is called automatically when data is stored. The @{Event} module has to be loaded (required) in the main
+-- chunk, ideally before this module: `require` is not allowed once the game runs, and the `on_load` and
+-- `on_configuration_changed` hooks of this module only exist when Event was loaded first.
+-- If you load Event after this module, call `Entity.register_cleanup()` from your own `on_load` handler too.
 -- @treturn boolean true if the handler is registered
 function Entity.register_cleanup()
     local Event = package.loaded[EVENT_PATH]
     if not Event then
-        local ok, loaded = pcall(require, EVENT_PATH)
-        Event = ok and loaded or nil
-    end
-    if not Event then
+        if not warned_no_event then
+            warned_no_event = true
+            log('[stdlib2] Entity data cleanup is off: require the Event module in the main chunk of control.lua.')
+        end
         return false
     end
     if cleanup_registered_with ~= Event then
@@ -87,8 +90,10 @@ end
 
 --- Restore the cleanup handler in `on_load`: it has to be registered identically for all players.
 function Entity.restore_cleanup()
+    -- The key is created together with the first registration and never removed, so it tells whether the handler
+    -- was registered during the session that made the save, even if every registration was cleaned up since.
     local registrations = Storage.get(Storage.KEYS.entity_data_reg)
-    if Entity.options.auto_cleanup and registrations and next(registrations) then
+    if Entity.options.auto_cleanup and registrations ~= nil then
         Entity.register_cleanup()
     end
 end
@@ -249,7 +254,16 @@ end
 function Entity.find_resources(entity, all)
     if entity.type == 'mining-drill' then
         local prototype = entity.prototype
-        local radius = prototype.get_mining_drill_radius and prototype.get_mining_drill_radius(entity.quality) or prototype.mining_drill_radius
+        -- Reading a key a LuaObject does not have raises, so every lookup is guarded.
+        -- TODO(2.1): verify which of the two exists in 2.1; the method takes the quality into account.
+        local radius
+        local ok, value = pcall(function() return prototype.get_mining_drill_radius(entity.quality) end)
+        if ok and value then
+            radius = value
+        else
+            ok, value = pcall(function() return prototype.mining_drill_radius end)
+            radius = ok and value or nil
+        end
         local name = (not all and (entity.mining_target and entity.mining_target.name)) or nil
         return entity.surface.count_entities_filtered {
             type = 'resource',
@@ -296,11 +310,16 @@ function Entity.count_circuit_connections(entity)
     local ok, connectors = pcall(entity.get_wire_connectors, false)
     local count = 0
     if ok and connectors then
+        -- defines.wire_connector_id aliases values (circuit_red == combinator_input_red, ...), count each id once
+        local seen = {}
         for _, id_name in pairs(circuit_connector_ids) do
             local id = defines.wire_connector_id[id_name]
-            local connector = id and connectors[id]
-            if connector then
-                count = count + connector.connection_count
+            if id and not seen[id] then
+                seen[id] = true
+                local connector = connectors[id]
+                if connector then
+                    count = count + connector.connection_count
+                end
             end
         end
     end

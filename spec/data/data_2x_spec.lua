@@ -167,8 +167,18 @@ describe('Data helpers (2.x)', function()
                     assert.is_nil(layer.hr_version)
                     assert.same(0.5, layer.scale)
                     assert.same(128, layer.width)
+                    assert.is_nil(layer.filename:find('/hr%-'), layer.filename)
                 end
             end
+            assert.same('__base__/graphics/entity/pipe-covers/pipe-cover-north.png', covers.north.layers[1].filename)
+        end)
+
+        it('Pipes.pictures uses the 2.x sizes with scale 0.5', function()
+            local pictures = Data.Pipes.pictures('assembling-machine-2', {x = 0, y = 1}, nil, nil, nil)
+            assert.same(70, pictures.north.width)
+            assert.same(36, pictures.north.height)
+            assert.same(0.5, pictures.north.scale)
+            assert.same('__core__/graphics/empty.png', pictures.south.filename)
         end)
     end)
 

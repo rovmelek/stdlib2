@@ -67,9 +67,10 @@ function Inventory.copy_as_simple_stacks(src, dest, clear)
                 health = stack.health or 1,
                 durability = stack.durability
             }
-            -- spoil_percent is only meaningful for items that can spoil
-            if (stack.prototype.spoil_ticks or 0) > 0 then
-                simple_stack.spoil_percent = stack.spoil_percent
+            -- spoil_percent is readable on every stack and is 0 for items that do not spoil
+            local spoil_percent = stack.spoil_percent
+            if spoil_percent and spoil_percent > 0 then
+                simple_stack.spoil_percent = spoil_percent
             end
             -- ammo is a special case field, accessing it on non-ammo itemstacks causes an exception
             simple_stack.ammo = stack.prototype.magazine_size and stack.ammo

@@ -31,7 +31,10 @@ Date: 2026-11-07
     - Event: build events carry event.entity, the 1.x field created_entity is deprecated and can be switched off with Event.options.legacy_created_entity = false.
     - Prototype group lists in Data now match the 2.1 prototype types.
     - Pipes.covers no longer returns hr_version tables.
-    - Github actions run luacheck and busted for all branches and pull requests, the luacheckrc is pinned to a commit.
+    - Github actions run luacheck (with the .luacheckrc of the repository) and busted for all branches and pull requests.
+    - LuaObjects are userdata in 2.x: Is.Object, Surface.lookup, Game.get_player/get_force/get_surface, Table.deep_copy and the invalid object check of Event.dispatch no longer index them.
+    - Pipes.pictures uses the 2.x sizes (twice the 1.x ones, scale 0.5) and Pipes.covers uses the 2.x file names without the hr- prefix.
+    - Stale train registry entries are removed when rolling stock dies or is mined, train data set by 2.0.x (keyed by the unit number of the main locomotive) is moved to the train id once.
   Bugfixes:
     - Orientation.to_direction returned the wrong direction with the 16 value defines.direction.
     - Position.direction_to returned the wrong direction for diagonal deltas.

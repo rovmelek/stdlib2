@@ -34,7 +34,7 @@ function Surface.lookup(surface)
         end
         return {}
     end
-    if type(surface) == 'table' and surface['__self'] then
+    if Is.Object(surface) then
         return Surface.lookup(surface.name)
     end
     local results = {}
@@ -43,7 +43,7 @@ function Surface.lookup(surface)
             if game.surfaces[surface_item] then
                 table.insert(results, game.surfaces[surface_item])
             end
-        elseif type(surface_item) == 'table' and surface_item['__self'] then
+        elseif Is.Object(surface_item) then
             table.insert(results, surface_item)
         end
     end

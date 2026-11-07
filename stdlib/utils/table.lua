@@ -2,6 +2,8 @@
 -- @module Utils.table
 -- @see table
 -- @usage local table = require('__stdlib2__/stdlib/utils/table')
+local Is = require('__stdlib2__/stdlib/utils/is')
+
 local Table = {}
 
 Table.remove = table.remove
@@ -328,7 +330,7 @@ function Table.deep_copy(object)
     local function _copy(inner)
         if type(inner) ~= 'table' then
             return inner
-        elseif inner.__self then
+        elseif Is.Object(inner) then
             return inner
         elseif lookup_table[inner] then
             return lookup_table[inner]
@@ -355,7 +357,7 @@ function Table.full_copy(object)
     local function _copy(inner)
         if type(inner) ~= 'table' then
             return inner
-        elseif inner.__self then
+        elseif Is.Object(inner) then
             return inner
         elseif lookup_table[inner] then
             return _copy(lookup_table[inner])
@@ -381,7 +383,7 @@ function Table.flex_copy(object)
     local function _copy(inner)
         if type(inner) ~= 'table' then
             return inner
-        elseif inner.__self then
+        elseif Is.Object(inner) then
             return inner
         elseif lookup_table[inner] then
             return lookup_table[inner]

@@ -83,6 +83,21 @@ describe('Entity data cleanup', function()
         assert.is_function(script.handlers[defines.events.on_object_destroyed])
     end)
 
+    it('registers the handler again in on_load even when every registration was cleaned up', function()
+        local e = ent(1)
+        Entity.set_data(e, 'a')
+        destroyed(e)
+        assert.same({}, storage._entity_data_reg)
+        local saved = storage
+        package.remove_stdlib()
+        Env.install()
+        _G.storage = saved
+        Event = require('__stdlib2__/stdlib/event/event')
+        Entity = require('__stdlib2__/stdlib/entity/entity')
+        script.raise_event('on_load')
+        assert.is_function(script.handlers[defines.events.on_object_destroyed])
+    end)
+
     it('does not register in on_load when there is nothing to clean up', function()
         script.raise_event('on_load')
         assert.is_nil(script.handlers[defines.events.on_object_destroyed])

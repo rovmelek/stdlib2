@@ -9,16 +9,17 @@ local Game = {
 setmetatable(Game, Game)
 local inspect = require('__stdlib2__/stdlib/vendor/inspect')
 local Storage = require('__stdlib2__/stdlib/utils/storage')
+local Is = require('__stdlib2__/stdlib/utils/is')
 
 --- Return a valid player object from event, index, string, or userdata
 -- @tparam string|number|LuaPlayer|event mixed
 -- @treturn LuaPlayer a valid player or nil
 function Game.get_player(mixed)
-    if type(mixed) == 'table' then
+    if Is.Object(mixed) then
+        return mixed.valid and mixed
+    elseif type(mixed) == 'table' then
         if mixed.player_index then
             return game.get_player(mixed.player_index)
-        elseif mixed.__self then
-            return mixed.valid and mixed
         end
     elseif mixed then
         return game.get_player(mixed)
@@ -29,10 +30,10 @@ end
 -- @tparam string|LuaForce|event mixed
 -- @treturn LuaForce a valid force or nil
 function Game.get_force(mixed)
-    if type(mixed) == 'table' then
-        if mixed.__self then
-            return mixed and mixed.valid and mixed
-        elseif mixed.force then
+    if Is.Object(mixed) then
+        return mixed.valid and mixed
+    elseif type(mixed) == 'table' then
+        if mixed.force then
             return Game.get_force(mixed.force)
         end
     elseif type(mixed) == 'string' then
@@ -42,10 +43,10 @@ function Game.get_force(mixed)
 end
 
 function Game.get_surface(mixed)
-    if type(mixed) == 'table' then
-        if mixed.__self then
-            return mixed.valid and mixed
-        elseif mixed.surface then
+    if Is.Object(mixed) then
+        return mixed.valid and mixed
+    elseif type(mixed) == 'table' then
+        if mixed.surface then
             return Game.get_surface(mixed.surface)
         end
     elseif mixed then

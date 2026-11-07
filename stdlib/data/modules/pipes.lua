@@ -6,8 +6,8 @@ local Sprites = require('__stdlib2__/stdlib/data/modules/sprites')
 
 -- Factorio 2.x removed hr_version: the former high resolution sprites are the only sprites, drawn with scale 0.5.
 -- Replace every `hr_version` by its content (the main sprite fields are overwritten).
--- TODO(2.1): verify the 2.x file names of the pipe cover and pipe picture sprites (`hr-` prefix dropped?),
--- they can not be checked without the game files.
+-- The 2.x base graphics dropped the low resolution files and renamed the `hr-` files to the plain name, so the
+-- `hr-` prefix of the file name is removed as well (`.../hr-pipe-cover-north.png` -> `.../pipe-cover-north.png`).
 local function use_hr_version(sprite)
     if type(sprite) ~= 'table' then
         return sprite
@@ -18,6 +18,9 @@ local function use_hr_version(sprite)
         for k, v in pairs(hr) do
             sprite[k] = v
         end
+        if type(sprite.filename) == 'string' then
+            sprite.filename = sprite.filename:gsub('/hr%-([^/]+)$', '/%1')
+        end
         sprite.scale = sprite.scale or 0.5
     end
     for _, layer in pairs(sprite.layers or {}) do
@@ -27,14 +30,18 @@ local function use_hr_version(sprite)
 end
 
 --Define pipe connection pipe pictures, not all entities use these. This function needs some work though.
+-- The default sprites are the 2.x (former high resolution) ones: twice the size of the 1.x ones, drawn with scale 0.5.
+-- TODO(2.1): the exact pixel sizes are the 1.x sizes doubled, verify them against the 2.x base graphics.
+-- A replacement may give its own `scale`, otherwise the default 0.5 is kept.
 function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_east, replacements)
     local new_pictures = {
         north = shift_north and
             {
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-N.png',
                 priority = 'extra-high',
-                width = 35,
-                height = 18,
+                width = 70,
+                height = 36,
+                scale = 0.5,
                 shift = shift_north
             } or
             Sprites.empty_picture(),
@@ -42,8 +49,9 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             {
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-S.png',
                 priority = 'extra-high',
-                width = 44,
-                height = 31,
+                width = 88,
+                height = 62,
+                scale = 0.5,
                 shift = shift_south
             } or
             Sprites.empty_picture(),
@@ -51,8 +59,9 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             {
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-W.png',
                 priority = 'extra-high',
-                width = 19,
-                height = 37,
+                width = 38,
+                height = 74,
+                scale = 0.5,
                 shift = shift_west
             } or
             Sprites.empty_picture(),
@@ -60,8 +69,9 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             {
                 filename = '__base__/graphics/entity/' .. pictures .. '/' .. pictures .. '-pipe-E.png',
                 priority = 'extra-high',
-                width = 20,
-                height = 38,
+                width = 40,
+                height = 76,
+                scale = 0.5,
                 shift = shift_east
             } or
             Sprites.empty_picture()
@@ -71,6 +81,7 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             new_pictures[direction].filename = image.filename
             new_pictures[direction].width = image.width
             new_pictures[direction].height = image.height
+            new_pictures[direction].scale = image.scale or new_pictures[direction].scale
             new_pictures[direction].priority = image.priority or new_pictures[direction].priority
         end
     end

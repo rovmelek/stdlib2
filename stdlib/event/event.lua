@@ -14,6 +14,7 @@
 -- @usage local Event = require('__stdlib2__/stdlib/event/event')
 
 local Stage = require('__stdlib2__/stdlib/utils/stage')
+local Is = require('__stdlib2__/stdlib/utils/is')
 Stage.assert('control', 'Event')
 
 local config = require('__stdlib2__/stdlib/config')
@@ -479,20 +480,22 @@ function Event.dispatch(event)
 
         for _, registered in ipairs(registry) do
             event.options = setmetatable(event.options, { __index = registered.options })
-            -- Native filters are re-checked in Lua when other handlers widened the filter Factorio applies
-            local native = rawget(registered.options, 'event_filter')
-            if native and not registry.native_exact and not Event.NativeFilters.matches(event, native) then
-                goto continue
-            end
             -- Check for userdata and stop processing this and further handlers if not valid
             -- This is the same behavior as factorio events.
             -- This is done inside the loop as other events can modify the event.
             if not event.options.skip_valid then
                 for _, val in pairs(event) do
-                    if type(val) == 'table' and val.__self and not val.valid then
+                    if Is.Object(val) and not val.valid then
                         return
                     end
                 end
+            end
+
+            -- Native filters are re-checked in Lua when other handlers widened the filter Factorio applies.
+            -- This runs after the validity check because the filter reads the (possibly destroyed) entity.
+            local native = rawget(registered.options, 'event_filter')
+            if native and not registry.native_exact and not Event.NativeFilters.matches(event, native) then
+                goto continue
             end
 
             -- Dispatch the event, if the event return Event.stop_processing don't process any more events

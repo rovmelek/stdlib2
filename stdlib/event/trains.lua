@@ -87,7 +87,8 @@ function Trains.get_train_id(train)
 end
 
 --- Remove invalid trains from the registry.
--- Train ids are now renamed by `on_train_created`, so this only has to drop stale entries.
+-- Train ids are renamed by `on_train_created`; this drops the entries of trains that were removed completely and is
+-- called when rolling stock dies or is mined.
 -- @lfunction
 function Trains._on_locomotive_changed()
     local registry = Storage.get(Storage.KEYS.train_registry) or {}
@@ -149,6 +150,34 @@ function Trains.get_data(train)
     return Entity.get_data(Trains.to_entity(train))
 end
 
+-- Trains.set_data of stdlib2 2.0.x was keyed by the unit number of the main locomotive ('train-<unit_number>').
+-- Move that data to the 'train-<LuaTrain.id>' keys, once: both are plain numbers, running it twice would mix them up.
+local function migrate_train_data(registry)
+    if Storage.get(Storage.KEYS.train_data_migrated) then
+        return
+    end
+    local entity_data = Storage.get(Storage.KEYS.entity_data)
+    if entity_data then
+        local moved = {}
+        for id, train in pairs(registry) do
+            local locomotive = Trains.get_main_locomotive(train)
+            local old_name = locomotive and locomotive.unit_number and ('train-' .. locomotive.unit_number)
+            local new_name = 'train-' .. id
+            if old_name and old_name ~= new_name and entity_data[old_name] then
+                moved[new_name] = entity_data[old_name]
+                entity_data[old_name] = nil
+            end
+        end
+        for new_name, entries in pairs(moved) do
+            for _, entry in pairs(entries) do
+                entry.entity = Trains.to_entity(registry[tonumber(new_name:sub(7))])
+            end
+            entity_data[new_name] = entries
+        end
+    end
+    Storage.set(Storage.KEYS.train_data_migrated, true)
+end
+
 -- Creates a registry of known trains.
 -- The registry is rebuilt from scratch, so registries saved with the 1.x keys (the unit number of the main
 -- locomotive) are migrated to the `LuaTrain.id` keys.
@@ -162,6 +191,7 @@ function Trains.create_train_registry()
         end
     end
 
+    migrate_train_data(registry)
     return registry
 end
 
@@ -189,6 +219,15 @@ end
 function Trains.register_events()
     -- Train ids (and renames) are driven by on_train_created
     Event.register(defines.events.on_train_created, Trains.on_train_created)
+
+    -- A train that is removed completely (last rolling stock mined or destroyed) gets no on_train_created
+    local rolling_stock = {}
+    for _, type_name in pairs { 'locomotive', 'cargo-wagon', 'fluid-wagon', 'artillery-wagon' } do
+        rolling_stock[#rolling_stock + 1] = { filter = 'type', type = type_name }
+    end
+    for _, name in pairs { 'on_entity_died', 'on_player_mined_entity', 'on_robot_mined_entity' } do
+        Event.register(defines.events[name], Trains._on_locomotive_changed, nil, nil, { event_filter = rolling_stock })
+    end
 
     -- When the mod is initialized the first time
     Event.register(Event.core_events.init_and_config, Trains.create_train_registry)

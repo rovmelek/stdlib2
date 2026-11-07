@@ -26,7 +26,8 @@ Storage.KEYS = {
     chunk_data = '_chunk_data', -- Chunk.set_data
     tile_data = '_tile_data', -- Tile.set_data
     print_queue = '_print_queue', -- Game.print_all messages for when no players exist yet
-    changes = '_changes' -- versions that already ran their Changes migration
+    changes = '_changes', -- versions that already ran their Changes migration
+    train_data_migrated = '_train_data_migrated' -- Trains.set_data of 2.0.x was moved to the LuaTrain.id keys
 }
 
 local function assert_writable(key)

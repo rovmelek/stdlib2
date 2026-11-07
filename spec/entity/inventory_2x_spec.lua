@@ -10,7 +10,7 @@ describe('Inventory (2.x)', function()
 
     local function stack(name, count, extra)
         local s = { valid = true, valid_for_read = true, name = name, count = count, health = 1,
-            quality = { name = 'normal' }, prototype = { spoil_ticks = 0 } }
+            quality = { name = 'normal' }, spoil_percent = 0, prototype = {} }
         for k, v in pairs(extra or {}) do s[k] = v end
         return s
     end
@@ -39,10 +39,10 @@ describe('Inventory (2.x)', function()
             assert.is_nil(dest.inserted[1].spoil_percent)
         end)
 
-        it('copies spoil_percent only for items that spoil', function()
+        it('copies spoil_percent only when the stack has spoiled', function()
             local src = inventory {
-                stack('meat', 1, { prototype = { spoil_ticks = 600 }, spoil_percent = 0.25 }),
-                stack('plate', 1, { spoil_percent = 0.5 }),
+                stack('meat', 1, { spoil_percent = 0.25 }),
+                stack('plate', 1),
             }
             local dest = inventory {}
             Inventory.copy_as_simple_stacks(src, dest, true)

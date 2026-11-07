@@ -54,6 +54,13 @@ describe('Entity (2.x)', function()
             assert.same(5, Entity.count_circuit_connections(e))
         end)
 
+        it('counts aliased connector ids once', function()
+            local ids = defines.wire_connector_id
+            assert.equals(ids.circuit_red, ids.combinator_input_red)
+            local e = circuit_entity({}, { [ids.circuit_red] = { connection_count = 1 } })
+            assert.same(1, Entity.count_circuit_connections(e))
+        end)
+
         it('is 0 without connectors', function()
             assert.same(0, Entity.count_circuit_connections(circuit_entity({})))
             assert.same(0, Entity.count_circuit_connections({}))
