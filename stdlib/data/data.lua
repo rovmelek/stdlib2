@@ -3,8 +3,9 @@
 
 require('__stdlib2__/stdlib/core') -- Calling core up here to setup any required global stuffs
 
-if _G.remote and _G.script then
-    error('Data Modules can only be required in the data stage', 2)
+local Stage = require('__stdlib2__/stdlib/utils/stage')
+if Stage.current() == 'control' then
+    Stage.assert('data', 'Data Modules')
 end
 
 local Table = require('__stdlib2__/stdlib/utils/table')
@@ -176,12 +177,16 @@ function Data:copy(new_name, result, opts)
             copy.placeable_by.item = result
         end
 
+        if copy.minable and copy.minable.results and #copy.minable.results == 1 then
+            copy.minable.results[1].name = result
+        end
+
         -- For recipes, "result" is no longer in use
         if copy.type == 'recipe' then
             -- recipes with more than 1 result are too ambiguous to replace
-            if #copy.results == 1 then 
+            if copy.results and #copy.results == 1 then
                 copy.results[1].name = result
-			end
+            end
         end
 
         return self(copy, nil, opts or self.options)
@@ -213,7 +218,7 @@ function Data:has_flag(flag)
 end
 
 function Data:any_flag(flag)
-    return self:Flags():all(flag)
+    return self:Flags():any(flag)
 end
 
 --)) Flags ((--
@@ -345,9 +350,14 @@ function Data:subgroup_order(subgroup, order)
     return self
 end
 
+-- The default icon size of Factorio 2.x
+local function defines_constant_icon_size()
+    return 64
+end
+
 --- Replace an icon
--- @tparam string icon
--- @tparam int size
+-- @tparam string|table icon an icon path, or an array of icon layers
+-- @tparam[opt] int size the icon size, defaults to the current icon size or 64
 function Data:replace_icon(icon, size)
     if self:is_valid() then
         if type(icon) == 'table' then
@@ -355,11 +365,8 @@ function Data:replace_icon(icon, size)
             self.icon = nil
         else
             self.icon = icon
+            self.icon_size = size or self.icon_size or defines_constant_icon_size()
         end
-        self.icon_size = size or self.icon_size
-    end
-    if not self.icon_size then
-        error('Icon present but icon size not detected')
     end
     return self
 end
@@ -383,7 +390,7 @@ function Data:make_icons(...)
     if self:is_valid() then
         if not self.icons then
             if self.icon then
-                self.icons = { { icon = self.icon, icon_size = self.icon_size } }
+                self.icons = { { icon = self.icon, icon_size = self.icon_size or defines_constant_icon_size() } }
                 self.icon = nil
             else
                 self.icons = {}
@@ -400,7 +407,7 @@ function Data:set_icon_at(index, values)
     if self:is_valid() then
         if self.icons then
             for k, v in pairs(values or {}) do
-                self.icons[index].k = v
+                self.icons[index][k] = v
             end
         end
     end

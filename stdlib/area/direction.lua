@@ -25,6 +25,22 @@ Direction.northwest = defines.direction.northwest
 Direction.southeast = defines.direction.southeast
 --- defines.direction.southwest
 Direction.southwest = defines.direction.southwest
+--- defines.direction.northnortheast
+Direction.northnortheast = defines.direction.northnortheast
+--- defines.direction.eastnortheast
+Direction.eastnortheast = defines.direction.eastnortheast
+--- defines.direction.eastsoutheast
+Direction.eastsoutheast = defines.direction.eastsoutheast
+--- defines.direction.southsoutheast
+Direction.southsoutheast = defines.direction.southsoutheast
+--- defines.direction.southsouthwest
+Direction.southsouthwest = defines.direction.southsouthwest
+--- defines.direction.westsouthwest
+Direction.westsouthwest = defines.direction.westsouthwest
+--- defines.direction.westnorthwest
+Direction.westnorthwest = defines.direction.westnorthwest
+--- defines.direction.northnorthwest
+Direction.northnorthwest = defines.direction.northnorthwest
 
 
 --- Returns the opposite direction
@@ -34,22 +50,24 @@ function Direction.opposite(direction)
     return (direction + 8) % 16
 end
 
+local steps = { [true] = 2, ['16'] = 1, [16] = 1 }
+
 --- Returns the next direction.
 --> For entities that only support two directions, see @{opposite}.
 -- @tparam defines.direction direction the starting direction
--- @tparam[opt=false] boolean eight_way true to get the next direction in 8-way (note: not many prototypes support 8-way)
+-- @tparam[opt] boolean|string mode `true` for the next 8-way direction, `'16'` for the next of all 16 directions, otherwise the next 4-way direction
 -- @treturn defines.direction the next direction
-function Direction.next(direction, eight_way)
-    return (direction + (eight_way and 2 or 4)) % 16
+function Direction.next(direction, mode)
+    return (direction + (steps[mode] or 4)) % 16
 end
 
 --- Returns the previous direction.
 --> For entities that only support two directions, see @{opposite}.
 -- @tparam defines.direction direction the starting direction
--- @tparam[opt=false] boolean eight_way true to get the previous direction in 8-way (note: not many prototypes support 8-way)
--- @treturn defines.direction the next direction
-function Direction.previous(direction, eight_way)
-    return (direction + (eight_way and -2 or -4)) % 16
+-- @tparam[opt] boolean|string mode `true` for the previous 8-way direction, `'16'` for the previous of all 16 directions, otherwise the previous 4-way direction
+-- @treturn defines.direction the previous direction
+function Direction.previous(direction, mode)
+    return (direction - (steps[mode] or 4)) % 16
 end
 
 --- Returns an orientation from a direction.
@@ -59,7 +77,13 @@ function Direction.to_orientation(direction)
     return direction / 16
 end
 
+local function round(n)
+    return math.floor(n * 1e6 + 0.5) / 1e6
+end
+
 --- Returns a vector from a direction.
+-- <p>The 8 primary directions keep their historic behaviour (a diagonal moves `distance` along both axes).
+-- The 8 secondary directions (such as `northnortheast`) return the unit vector scaled by `distance`.
 -- @tparam defines.direction direction
 -- @tparam[opt = 1] number distance
 -- @treturn Position
@@ -82,6 +106,9 @@ function Direction.to_vector(direction, distance)
         x = x - distance
     elseif direction == Direction.northwest then
         x, y = x - distance, y - distance
+    elseif direction and direction % 2 == 1 and direction >= 0 and direction < 16 then
+        local radians = direction / 16 * 2 * math.pi
+        x, y = round(math.sin(radians) * distance), round(-math.cos(radians) * distance)
     end
     return { x = x, y = y }
 end
@@ -102,6 +129,10 @@ do
 
     function Direction.next_direction(direction, reverse, eight_way)
         return (direction + (eight_way and ((reverse and -2) or 2) or ((reverse and -4) or 4))) % 16
+    end
+
+    function Direction.orientation_to_16way(orientation)
+        return Orientation.to_direction(orientation, 'sixteen_way')
     end
 end
 

@@ -14,14 +14,22 @@ function Filters.on_key(event_key, pattern)
     end
 end
 
+-- Find the entity of an event: `entity` (2.x), then the deprecated `created_entity`, then `destination` (on_entity_cloned).
+local function get_entity(event)
+    local entity = event and (event.entity or event.created_entity or event.destination)
+    if entity and entity.valid then
+        return entity
+    end
+end
+
 function Filters.entity.name(event, pattern)
-    local entity = event and (event.created_entity or event.entity)
-    return entity.name:match(pattern)
+    local entity = get_entity(event)
+    return entity and entity.name:match(pattern)
 end
 
 function Filters.entity.type(event, pattern)
-    local entity = event and (event.created_entity or event.entity)
-    return entity.type:match(pattern)
+    local entity = get_entity(event)
+    return entity and entity.type:match(pattern)
 end
 
 function Filters.player.cursor_stack(event, pattern)

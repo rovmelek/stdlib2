@@ -63,9 +63,14 @@ function Inventory.copy_as_simple_stacks(src, dest, clear)
             local simple_stack = {
                 name = stack.name,
                 count = stack.count,
+                quality = stack.quality and stack.quality.name,
                 health = stack.health or 1,
                 durability = stack.durability
             }
+            -- spoil_percent is only meaningful for items that can spoil
+            if (stack.prototype.spoil_ticks or 0) > 0 then
+                simple_stack.spoil_percent = stack.spoil_percent
+            end
             -- ammo is a special case field, accessing it on non-ammo itemstacks causes an exception
             simple_stack.ammo = stack.prototype.magazine_size and stack.ammo
 
@@ -116,6 +121,10 @@ end
 -- @return the item or filter
 function Inventory.get_item_or_filter(inventory, idx, item_only, filter_only)
     local filter = not item_only and inventory.get_filter(idx)
+    -- since 2.0 filters are ItemFilter tables
+    if type(filter) == 'table' then
+        filter = filter.name
+    end
     return filter or (not filter_only and inventory[idx].valid_for_read and inventory[idx].name) or nil
 end
 
@@ -150,7 +159,7 @@ end
 -- @tparam LuaInventory destination
 function Inventory.swap_inventory(source, destination)
     for i = 1, min(#destination, #source) do
-        destination[i].swap_stack(source[1])
+        destination[i].swap_stack(source[i])
     end
 end
 

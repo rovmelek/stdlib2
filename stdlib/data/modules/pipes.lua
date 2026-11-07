@@ -4,6 +4,28 @@
 local Pipes = {}
 local Sprites = require('__stdlib2__/stdlib/data/modules/sprites')
 
+-- Factorio 2.x removed hr_version: the former high resolution sprites are the only sprites, drawn with scale 0.5.
+-- Replace every `hr_version` by its content (the main sprite fields are overwritten).
+-- TODO(2.1): verify the 2.x file names of the pipe cover and pipe picture sprites (`hr-` prefix dropped?),
+-- they can not be checked without the game files.
+local function use_hr_version(sprite)
+    if type(sprite) ~= 'table' then
+        return sprite
+    end
+    local hr = sprite.hr_version
+    if hr then
+        sprite.hr_version = nil
+        for k, v in pairs(hr) do
+            sprite[k] = v
+        end
+        sprite.scale = sprite.scale or 0.5
+    end
+    for _, layer in pairs(sprite.layers or {}) do
+        use_hr_version(layer)
+    end
+    return sprite
+end
+
 --Define pipe connection pipe pictures, not all entities use these. This function needs some work though.
 function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_east, replacements)
     local new_pictures = {
@@ -202,7 +224,12 @@ function Pipes.covers(n, s, w, e)
         } or
         Sprites.empty_picture()
 
-    return { north = n, south = s, east = e, west = w }
+    return {
+        north = use_hr_version(n),
+        south = use_hr_version(s),
+        east = use_hr_version(e),
+        west = use_hr_version(w)
+    }
 end
 
 return Pipes

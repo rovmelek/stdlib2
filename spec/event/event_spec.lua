@@ -1,6 +1,6 @@
 require('spec/setup/busted')()
 
-local World = require('faketorio/world')
+local World = require('spec/setup/world')
 
 local match = require('luassert.match')
 require('spec/setup/matcher')

@@ -107,6 +107,7 @@ end
 -- @treturn LuaEntity the entity that has been frozen or unfrozen
 function Entity.set_frozen(entity, mode)
     assert(entity, 'missing entity argument')
+    assert(type(entity) == 'table' or type(entity) == 'userdata', 'entity must be a LuaEntity')
     mode = mode == false and true or false
     entity.active = mode
     entity.operable = mode
@@ -120,6 +121,7 @@ end
 -- @treturn LuaEntity the entity that has been made indestructable or destructable
 function Entity.set_indestructible(entity, mode)
     assert(entity, 'missing entity argument')
+    assert(type(entity) == 'table' or type(entity) == 'userdata', 'entity must be a LuaEntity')
     mode = mode == false and true or false
     entity.minable = mode
     entity.destructible = mode
@@ -145,7 +147,8 @@ end
 
 function Entity.find_resources(entity, all)
     if entity.type == 'mining-drill' then
-        local radius = entity.prototype.mining_drill_radius
+        local prototype = entity.prototype
+        local radius = prototype.get_mining_drill_radius and prototype.get_mining_drill_radius(entity.quality) or prototype.mining_drill_radius
         local name = (not all and (entity.mining_target and entity.mining_target.name)) or nil
         return entity.surface.count_entities_filtered {
             type = 'resource',
@@ -162,14 +165,45 @@ function Entity.is_damaged(entity)
 end
 Entity.damaged = Entity.is_damaged
 
+local circuit_ids = { 'circuit_red', 'circuit_green' }
+local circuit_connector_ids = {
+    'circuit_red', 'circuit_green', 'combinator_input_red', 'combinator_input_green',
+    'combinator_output_red', 'combinator_output_green'
+}
+
+--- Is the entity connected to at least one other entity with a red or green circuit wire?
+-- @tparam LuaEntity entity
+-- @treturn boolean
 function Entity.is_circuit_connected(entity)
-    local list = entity.circuit_connected_entities
-    return list and (next(list.red) or next(list.green))
+    for _, id_name in pairs(circuit_ids) do
+        local wire_id = defines.wire_connector_id[id_name]
+        local ok, network = pcall(entity.get_circuit_network, wire_id)
+        if ok and network then
+            local count = network.connected_circuit_count
+            if count == nil or count > 1 then
+                return true
+            end
+        end
+    end
+    return false
 end
 
+--- Count the circuit wires (red and green) connected to the entity.
+-- @tparam LuaEntity entity
+-- @treturn uint
 function Entity.count_circuit_connections(entity)
-    local list = entity.circuit_connected_entities
-    return list and #list.red + #list.green
+    local ok, connectors = pcall(entity.get_wire_connectors, false)
+    local count = 0
+    if ok and connectors then
+        for _, id_name in pairs(circuit_connector_ids) do
+            local id = defines.wire_connector_id[id_name]
+            local connector = id and connectors[id]
+            if connector then
+                count = count + connector.connection_count
+            end
+        end
+    end
+    return count
 end
 
 function Entity.has_fluidbox(entity)

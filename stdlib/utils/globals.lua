@@ -136,9 +136,9 @@ end
 
 --- Install Math, String, Table into their global counterparts.
 function STDLIB.install_global_utils()
-    STDLIB.install.math()
-    STDLIB.install.string()
-    STDLIB.install.table()
+    STDLIB.install_math()
+    STDLIB.install_string()
+    STDLIB.install_table()
 end
 
 --- Reload a required file, NOT IMPLEMENTED

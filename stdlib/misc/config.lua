@@ -152,7 +152,7 @@ function M.new(config_table)
     -- @tparam string path the config path to delete
     -- @treturn uint 0 on failure or the number of affected paths on success
     function Config.delete(path)
-        if type(path) ~= 'string' or string == '' then
+        if type(path) ~= 'string' or path == '' then
             error('path is invalid', 2)
         end
 

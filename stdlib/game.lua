@@ -106,27 +106,42 @@ function Game.get_or_set_data(sub_table, index, key, set, value)
 end
 
 function Game.write_mods()
-    game.write_file('Mods.lua', 'return ' .. inspect(script.active_mods))
+    helpers.write_file('Mods.lua', 'return ' .. inspect(script.active_mods))
 end
 
+--- Write the flow statistics of every force and surface to `script-output/Statistics/<tick>/...`.
+-- <p>Files are written to `Statistics/<tick>/<surface>/<force>/<kind>-<count_type>.json` for
+-- the item, fluid, kill and build statistics and to `Statistics/<tick>/<surface>/pollution-<count_type>.json`.
 function Game.write_statistics()
     local pre = 'Statistics/' .. game.tick .. '/'
-    for _, force in pairs(game.forces) do
-        local folder = pre .. force.name .. '/'
+    local kinds = {
+        item = 'get_item_production_statistics',
+        fluid = 'get_fluid_production_statistics',
+        kill = 'get_kill_count_statistics',
+        build = 'get_entity_build_count_statistics'
+    }
+    for _, surface in pairs(game.surfaces) do
+        local surface_folder = pre .. surface.name .. '/'
+        local pollution = game.get_pollution_statistics(surface)
         for _, count_type in pairs { 'input_counts', 'output_counts' } do
-            game.write_file(folder .. 'pollution-' .. count_type .. '.json', game.table_to_json(game.pollution_statistics[count_type]))
-            game.write_file(folder .. 'item-' .. count_type .. '.json', game.table_to_json(force.item_production_statistics[count_type]))
-            game.write_file(folder .. 'fluid-' .. count_type .. '.json', game.table_to_json(force.fluid_production_statistics[count_type]))
-            game.write_file(folder .. 'kill-' .. count_type .. '.json', game.table_to_json(force.kill_count_statistics[count_type]))
-            game.write_file(folder .. 'build-' .. count_type .. '.json', game.table_to_json(force.entity_build_count_statistics[count_type]))
+            if pollution then
+                helpers.write_file(surface_folder .. 'pollution-' .. count_type .. '.json', helpers.table_to_json(pollution[count_type]))
+            end
+            for _, force in pairs(game.forces) do
+                local folder = surface_folder .. force.name .. '/'
+                for kind, getter in pairs(kinds) do
+                    local stats = force[getter](surface)
+                    helpers.write_file(folder .. kind .. '-' .. count_type .. '.json', helpers.table_to_json(stats[count_type]))
+                end
+            end
         end
     end
 end
 
 function Game.write_surfaces()
-    game.remove_path('surfaces')
+    helpers.remove_path('surfaces')
     for _, surface in pairs(game.surfaces) do
-        game.write_file('surfaces/' .. (surface.name or surface.index) .. '.lua', 'return ' .. inspect(surface.map_gen_settings))
+        helpers.write_file('surfaces/' .. (surface.name or surface.index) .. '.lua', 'return ' .. inspect(surface.map_gen_settings))
     end
 end
 

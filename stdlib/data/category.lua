@@ -14,7 +14,6 @@ Category.category_types = {
     ['fuel-category'] = true,
     ['recipe-category'] = true,
     ['module-category'] = true,
-    ['rail-category'] = true,
     ['resource-category'] = true
 }
 
@@ -31,7 +30,7 @@ function Category:remove(_)
 end
 
 function Category:replace(a, b)
-    if self:valid('category') then
+    if self:is_valid() then
         self:remove(a)
         self:add(b)
     end

@@ -9,7 +9,8 @@ describe('Logger', function()
 
     describe('Logger.new', function()
         it('creates a new logger, passing all options', function()
-            _G["game"] = { tick = 0, write_file = function(file_name, msg, append) print(file_name) print(msg) print(append) end }
+            _G["game"] = { tick = 0 }
+            _G["helpers"] = { write_file = function() end }
             --local s = spy.on(_G["game"], 'write_file')
 
             local l = Logger.new('test',false, {log_ticks = true})
@@ -25,8 +26,9 @@ describe('Logger', function()
 
     describe('Logger.log', function()
         it('buffers correctly', function()
-            _G["game"] = { tick = 0, write_file = function() end }
-            local s = spy.on(_G["game"], 'write_file')
+            _G["game"] = { tick = 0 }
+            _G["helpers"] = { write_file = function() end }
+            local s = spy.on(_G["helpers"], 'write_file')
 
             local l = Logger.new('test',false, {log_ticks = true})
             l.log('foo')
@@ -47,8 +49,9 @@ describe('Logger', function()
         end)
 
         it('creates correct timestamps', function()
-            _G["game"] = { tick = 0, write_file = function() end }
-            local s = spy.on(_G["game"], 'write_file')
+            _G["game"] = { tick = 0 }
+            _G["helpers"] = { write_file = function() end }
+            local s = spy.on(_G["helpers"], 'write_file')
 
             local l = Logger.new('test', true, {log_ticks = false})
             l.log('foo')
@@ -90,8 +93,9 @@ describe('Logger', function()
             assert.spy(spyLog).was_not_called()
             assert.equals('00:00:00: no game\n', l.buffer[1])
 
-            _G["game"] = { tick = 0, write_file = function() end }
-            local s2 = spy.on(_G["game"], 'write_file')
+            _G["game"] = { tick = 0 }
+            _G["helpers"] = { write_file = function() end }
+            local s2 = spy.on(_G["helpers"], 'write_file')
             l.log('got game')
             assert.spy(s2).was_called_with('stdlib/test.log', '00:00:00: no game\n00:00:00: got game\n', false)
             assert.falsy(l.buffer[1])
@@ -101,8 +105,9 @@ describe('Logger', function()
 
     describe('Logger.write', function()
         it('uses the correct extension', function()
-            _G["game"] = { tick = 0, write_file = function() end }
-            local s = spy.on(_G["game"], 'write_file')
+            _G["game"] = { tick = 0 }
+            _G["helpers"] = { write_file = function() end }
+            local s = spy.on(_G["helpers"], 'write_file')
 
             local l = Logger.new('test',true, {log_ticks = true, file_extension = 'lua'})
             l.log('foo')

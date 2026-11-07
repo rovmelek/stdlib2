@@ -29,7 +29,9 @@ setmetatable(Event, Event)
 Event.options = {
     protected_mode = false,
     skip_valid = false,
-    force_crc = false -- Requires debug_mode to be true
+    force_crc = false, -- Requires debug_mode to be true
+    -- Deprecated: set event.created_entity (the 1.x field name) on build events. Factorio 2.x uses event.entity.
+    legacy_created_entity = true
 }
 local Event_options_meta = { __index = Event.options }
 
@@ -94,10 +96,14 @@ local function id_to_name(name)
     return event_names[name] or table.invert(Event.custom_events)[name] or name or 'unknown'
 end
 
+-- Build events that used to carry `created_entity`. Value is the 2.x field holding the entity.
 local stupid_events = {
     [defines.events.script_raised_revive] = 'entity',
     [defines.events.script_raised_built] = 'entity',
-    [defines.events.on_entity_cloned] = 'destination'
+    [defines.events.on_entity_cloned] = 'destination',
+    [defines.events.on_built_entity] = 'entity',
+    [defines.events.on_robot_built_entity] = 'entity',
+    [defines.events.on_space_platform_built_entity] = 'entity'
 }
 
 --- Registers a handler for the given events.
@@ -131,7 +137,7 @@ function Event.register(event_id, handler, filter, pattern, options)
     --Recursively handle event id tables
     if Type.Table(event_id) then
         for _, id in pairs(event_id) do
-            Event.register(id, handler)
+            Event.register(id, handler, filter, pattern, options)
         end
         return Event
     end
@@ -201,7 +207,7 @@ function Event.remove(event_id, handler, filter, pattern)
     -- Handle recursion here
     if Type.Table(event_id) then
         for _, id in pairs(event_id) do
-            Event.remove(id, handler)
+            Event.remove(id, handler, filter, pattern)
         end
         return Event
     end
@@ -413,7 +419,10 @@ function Event.dispatch(event)
 
         -- Some events are just stupid and need more help
         if stupid_events[event.name] then
-            event.created_entity = event.created_entity or event.entity or event.destination
+            event.entity = event.entity or event.destination
+            if Event.options.legacy_created_entity then
+                event.created_entity = event.created_entity or event.entity
+            end
         end
 
         for _, registered in ipairs(registry) do

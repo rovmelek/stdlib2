@@ -143,11 +143,11 @@ end
 function Changes.dump_data()
     for change_type in pairs(map_changes) do
         if table.size(Changes[change_type]) > 0 then
-            game.write_file(Changes.get_file_path('Changes/' .. change_type .. '.lua'),
+            helpers.write_file(Changes.get_file_path('Changes/' .. change_type .. '.lua'),
                 'return ' .. inspect(Changes[change_type], { longkeys = true, arraykeys = true }))
         end
     end
-    game.write_file(Changes.get_file_path('Changes/global.lua'), 'return ' .. inspect(storage._changes or nil, { longkeys = true, arraykeys = true }))
+    helpers.write_file(Changes.get_file_path('Changes/storage.lua'), 'return ' .. inspect(storage._changes or nil, { longkeys = true, arraykeys = true }))
 end
 
 return Changes
