@@ -14,7 +14,7 @@ max_cyclomatic_complexity = false
 ignore = { '111/__', '21./%w+_$', '21./^_[_%w]+$', '213/^%a$', '213/index', '213/key', '11[12]/[Tt]est[%w_]+' }
 not_globals = { 'coroutine', 'io', 'socket', 'dofile', 'loadfile' }
 
-exclude_files = { 'stdlib/vendor/', 'wiki/', 'doc/', '**/.trash/', '**/.history/', '**/.vscode/' }
+exclude_files = { '.lua/', '.luarocks/', '.install/', 'stdlib/vendor/', 'wiki/', 'doc/', '**/.trash/', '**/.history/', '**/.vscode/' }
 
 globals = {
     'script', 'game', 'defines', 'data', 'mods', 'settings', 'remote', 'commands', 'rcon', 'rendering',

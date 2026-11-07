@@ -67,7 +67,7 @@ function Pipes.pictures(pictures, shift_north, shift_south, shift_west, shift_ea
             Sprites.empty_picture()
     }
     for direction, image in pairs(replacements or {}) do
-        if not (new_pictures[direction].filename == '__core__/graphics/empty.png') then
+        if new_pictures[direction].filename ~= '__core__/graphics/empty.png' then
             new_pictures[direction].filename = image.filename
             new_pictures[direction].width = image.width
             new_pictures[direction].height = image.height
