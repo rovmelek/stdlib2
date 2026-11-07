@@ -25,30 +25,131 @@ function Entity.has(entity, field_name)
     return status
 end
 
+local Storage = require('__stdlib2__/stdlib/utils/storage')
+
+--- Options of this module.
+-- <ul>
+-- <li>`auto_cleanup` (default `true`): data stored with @{set_data} for entities that have a `unit_number` is removed
+-- when the entity is destroyed. This registers `on_object_destroyed` through the @{Event} module, so load
+-- @{Event} before this module, otherwise the cleanup can not be restored in `on_load`.
+-- </ul>
+Entity.options = {
+    auto_cleanup = true
+}
+
+local EVENT_PATH = '__stdlib2__/stdlib/event/event'
+
+-- Remove entries of invalid entities from a name keyed list.
+local function prune(entity_category)
+    for i = #entity_category, 1, -1 do
+        local entry_entity = entity_category[i].entity
+        if entry_entity == nil or entry_entity.valid == false then
+            table.remove(entity_category, i)
+        end
+    end
+end
+
+--- Handler of `on_object_destroyed`, removes the data of destroyed entities.
+-- @tparam table event
+function Entity._on_object_destroyed(event)
+    local registrations = Storage.get(Storage.KEYS.entity_data_reg)
+    local unit_number = registrations and registrations[event.registration_number]
+    if unit_number then
+        registrations[event.registration_number] = nil
+        local entity_data = Storage.get(Storage.KEYS.entity_data)
+        if entity_data then
+            entity_data[unit_number] = nil
+        end
+    end
+end
+
+local cleanup_registered_with
+
+--- Register the cleanup handler of destroyed entities with the Event module.
+-- This is called automatically when data is stored. Call it from `on_load` yourself if you do not load the
+-- @{Event} module before this module.
+-- @treturn boolean true if the handler is registered
+function Entity.register_cleanup()
+    local Event = package.loaded[EVENT_PATH]
+    if not Event then
+        local ok, loaded = pcall(require, EVENT_PATH)
+        Event = ok and loaded or nil
+    end
+    if not Event then
+        return false
+    end
+    if cleanup_registered_with ~= Event then
+        cleanup_registered_with = Event
+        Event.register(defines.events.on_object_destroyed, Entity._on_object_destroyed)
+    end
+    return true
+end
+
+--- Restore the cleanup handler in `on_load`: it has to be registered identically for all players.
+function Entity.restore_cleanup()
+    local registrations = Storage.get(Storage.KEYS.entity_data_reg)
+    if Entity.options.auto_cleanup and registrations and next(registrations) then
+        Entity.register_cleanup()
+    end
+end
+
+--- After a configuration change register the entities that already have data for destruction.
+-- Entities that can not be found by unit number keep their data (the lookup does not work for all prototypes).
+function Entity._migrate_cleanup()
+    local entity_data = Storage.get(Storage.KEYS.entity_data)
+    if not (Entity.options.auto_cleanup and entity_data and script.register_on_object_destroyed) then
+        return
+    end
+    local registrations = Storage.get(Storage.KEYS.entity_data_reg, Storage.new_table)
+    local migrated = false
+    for key in pairs(entity_data) do
+        if type(key) == 'number' then
+            local found = game.get_entity_by_unit_number(key)
+            if found and found.valid then
+                registrations[(script.register_on_object_destroyed(found))] = key
+                migrated = true
+            end
+        end
+    end
+    if migrated then
+        Entity.register_cleanup()
+    end
+end
+
+do
+    -- Hook on_load and on_configuration_changed when the Event module is already loaded (its usual place is first).
+    local Event = package.loaded[EVENT_PATH]
+    if Event then
+        Event.on_load(Entity.restore_cleanup)
+        Event.on_configuration_changed(Entity._migrate_cleanup)
+    end
+end
+
 --- Gets the user data that is associated with an entity.
 -- The user data is stored in the storage object and it persists between loads.
 --> The user data will be removed from an entity when the entity becomes invalid.
--- @tparam LuaEntity entity the entity to look up
--- @treturn ?|nil|Mixed the user data, or nil if no data exists for the entity
+-- @tparam LuaEntity entity the entity to look up the user data for
+-- @treturn ?|nil|Mixed the user data, or nil if the entity has no user data
 function Entity.get_data(entity)
     assert(entity, 'missing entity argument')
-    if not storage._entity_data then
+    local entity_data = Storage.get(Storage.KEYS.entity_data)
+    if not entity_data then
         return nil
     end
 
     local unit_number = entity.unit_number
     if unit_number then
-        return storage._entity_data[unit_number]
+        return entity_data[unit_number]
     else
-        local entity_name = entity.name
-        if not storage._entity_data[entity_name] then
+        local entity_category = entity_data[entity.name]
+        if not entity_category then
             return nil
         end
 
-        local entity_category = storage._entity_data[entity_name]
-        for _, entity_data in pairs(entity_category) do
-            if Entity._are_equal(entity_data.entity, entity) then
-                return entity_data.data
+        prune(entity_category)
+        for _, entry in pairs(entity_category) do
+            if Entity._are_equal(entry.entity, entity) then
+                return entry.data
             end
         end
         return nil
@@ -64,39 +165,39 @@ end
 function Entity.set_data(entity, data)
     assert(entity, 'missing entity argument')
 
-    if not storage._entity_data then
-        storage._entity_data = {}
-    end
+    local entity_data = Storage.get(Storage.KEYS.entity_data, Storage.new_table)
 
     local unit_number = entity.unit_number
     if unit_number then
-        local prev = storage._entity_data[unit_number]
-        storage._entity_data[unit_number] = data
+        local prev = entity_data[unit_number]
+        entity_data[unit_number] = data
+        if data ~= nil and prev == nil and Entity.options.auto_cleanup and script and script.register_on_object_destroyed
+            and Entity.register_cleanup() then
+            local registrations = Storage.get(Storage.KEYS.entity_data_reg, Storage.new_table)
+            registrations[(script.register_on_object_destroyed(entity))] = unit_number
+        end
         return prev
     else
         local entity_name = entity.name
-        if not storage._entity_data[entity_name] then
-            storage._entity_data[entity_name] = {}
-        end
+        entity_data[entity_name] = entity_data[entity_name] or {}
+        local entity_category = entity_data[entity_name]
 
-        local entity_category = storage._entity_data[entity_name]
-
+        prune(entity_category)
         for i = #entity_category, 1, -1 do
-            local entity_data = entity_category[i]
-            if not entity_data.entity.valid then
-                table.remove(entity_category, i)
-            end
-            if Entity._are_equal(entity_data.entity, entity) then
-                local prev = entity_data.data
+            local entry = entity_category[i]
+            if Entity._are_equal(entry.entity, entity) then
+                local prev = entry.data
                 if data then
-                    entity_data.data = data
+                    entry.data = data
                 else
                     table.remove(entity_category, i)
                 end
                 return prev
             end
         end
-        table.insert(entity_category, { entity = entity, data = data })
+        if data ~= nil then
+            table.insert(entity_category, { entity = entity, data = data })
+        end
     end
     return nil
 end

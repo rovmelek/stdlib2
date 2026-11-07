@@ -1,10 +1,4 @@
-on:
-  push:
-    branches:
-    - master
-  pull_request:
-    branches:
-    - master
+on: [push, pull_request]
 name: Luacheck
 jobs:
   lint:
@@ -14,4 +8,4 @@ jobs:
       - name: lint
         uses: Roang-zero1/factorio-mod-luacheck@master
         with:
-          luacheckrc_url: https://raw.githubusercontent.com/Nexela/Factorio-luacheckrc/master/.luacheckrc
+          luacheckrc_url: https://raw.githubusercontent.com/Nexela/Factorio-luacheckrc/8d4748260d8853925c9c0b00425c86529dd2d644/.luacheckrc

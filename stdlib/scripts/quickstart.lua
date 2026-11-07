@@ -16,7 +16,7 @@
 
 local Event = require('__stdlib2__/stdlib/event/event')
 local Area = require('__stdlib2__/stdlib/area/area')
-local QS = require('__stdlib2__/stdlib/misc/config').new(_ENV.prequire('config-quickstart') or {})
+local QS = require('__stdlib2__/stdlib/misc/config').new(require('__stdlib2__/stdlib/utils/globals').prequire('config-quickstart') or {})
 
 if not remote.interfaces['quickstart_script'] then
     local qs_interface = {}

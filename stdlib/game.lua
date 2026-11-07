@@ -7,7 +7,8 @@ local Game = {
     __index = require('__stdlib2__/stdlib/core')
 }
 setmetatable(Game, Game)
-local inspect = _ENV.inspect
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 
 --- Return a valid player object from event, index, string, or userdata
 -- @tparam string|number|LuaPlayer|event mixed
@@ -70,8 +71,8 @@ function Game.print_all(msg, condition)
         end
         return num
     else
-        storage._print_queue = storage._print_queue or {}
-        storage._print_queue[#storage._print_queue + 1] = msg
+        local queue = Storage.get(Storage.KEYS.print_queue, Storage.new_table)
+        queue[#queue + 1] = msg
     end
 end
 
@@ -84,13 +85,13 @@ end
 -- @treturn mixed the chunk value stored at the key or the previous value
 function Game.get_or_set_data(sub_table, index, key, set, value)
     assert(type(sub_table) == 'string', 'sub_table must be a string')
-    storage[sub_table] = storage[sub_table] or {}
+    local root = Storage.get(sub_table, Storage.new_table)
     local this
     if index then
-        storage[sub_table][index] = storage[sub_table][index] or {}
-        this = storage[sub_table][index]
+        root[index] = root[index] or {}
+        this = root[index]
     else
-        this = storage[sub_table]
+        this = root
     end
     local previous
 

@@ -76,7 +76,7 @@ end
 -- @usage
 -- require('__stdlib2__/stdlib/data/data).util.create_data_globals()
 function Util.create_data_globals(files)
-    _ENV.STDLIB.create_stdlib_data_globals(files)
+    require('__stdlib2__/stdlib/utils/globals').create_stdlib_data_globals(files)
 end
 
 return Util

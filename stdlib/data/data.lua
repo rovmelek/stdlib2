@@ -28,8 +28,9 @@ local Data = {
 }
 setmetatable(Data, Data)
 
-local inspect = _ENV.inspect
-local rawtostring = _ENV.rawtostring
+local STDLIB = require('__stdlib2__/stdlib/utils/globals')
+local inspect = STDLIB.inspect
+local rawtostring = STDLIB.rawtostring
 --))
 
 --(( Local Functions ))--
@@ -39,7 +40,7 @@ local function log_trace(self, object, object_type)
     local msg = (self.__class and self.__class or '') .. (self.name and '/' .. self.name or '') .. ' '
     msg = msg .. (object_type and (object_type .. '/') or '') .. tostring(object) .. ' does not exist.'
 
-    local trace = _ENV.data_traceback()
+    local trace = STDLIB.data_traceback()
     log(msg .. trace)
 end
 --)) END Local Functions ((--
@@ -501,11 +502,18 @@ end
 Data.__call = Data.get
 --)) END Methods ((--
 
+-- Names of prototype fields that are also method names (such as `allow_quality`): the method wins on objects, read
+-- the field with `object._raw.field`. Classes add their names here.
+Data._prefer_methods = {}
+
 -- This is the table set on new objects
 Data._object_mt = {
     --__class = "Data",
     -- index from _raw if that is not available then retrieve from the class
     __index = function(t, k)
+        if Data._prefer_methods[k] then
+            return t.class[k]
+        end
         return rawget(t, '_raw') and t._raw[k] or t.class[k]
     end,
     -- Only allow setting on valid _raw tables.

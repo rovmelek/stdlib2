@@ -88,4 +88,30 @@ describe('Inventory (2.x)', function()
             assert.same('coal', Inventory.get_item_or_filter(inv, 1))
         end)
     end)
+
+    describe('quality aware contents', function()
+        local inv = {
+            get_contents = function()
+                return {
+                    { name = 'iron-plate', quality = 'normal', count = 10 },
+                    { name = 'iron-plate', quality = 'rare', count = 5 },
+                    { name = 'coal', quality = 'normal', count = 3 },
+                }
+            end
+        }
+
+        it('.get_contents_by_name sums all qualities', function()
+            assert.same({ ['iron-plate'] = 15, coal = 3 }, Inventory.get_contents_by_name(inv))
+        end)
+
+        it('.get_contents_by_quality keeps qualities apart', function()
+            assert.same({ ['iron-plate'] = { normal = 10, rare = 5 }, coal = { normal = 3 } }, Inventory.get_contents_by_quality(inv))
+        end)
+
+        it('handles empty inventories', function()
+            local empty = { get_contents = function() return {} end }
+            assert.same({}, Inventory.get_contents_by_name(empty))
+            assert.same({}, Inventory.get_contents_by_quality(empty))
+        end)
+    end)
 end)

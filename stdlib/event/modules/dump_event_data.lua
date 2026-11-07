@@ -1,4 +1,4 @@
-local inspect = _ENV.inspect
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
 
 local function setup_event_data(Event, valid_event_id, id_to_name)
     local function get_registered_counts(reg_type)

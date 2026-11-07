@@ -264,6 +264,29 @@ function Recipe:remove_unlock(tech_name)
     return self
 end
 
+-- `allow_quality` is a prototype field and a method: on Recipe objects the method wins, read the field with `recipe._raw.allow_quality`.
+Data._prefer_methods.allow_quality = true
+
+--- Allow or forbid quality for the recipe (`allow_quality`). The field is inert without the quality feature.
+-- @tparam boolean allow
+-- @treturn self
+function Recipe:allow_quality(allow)
+    if self:is_valid() then
+        self._raw.allow_quality = allow and true or false
+    end
+    return self
+end
+
+--- Set `can_set_quality` of the recipe. The field is inert without the quality feature.
+-- @tparam boolean can_set
+-- @treturn self
+function Recipe:set_can_set_quality(can_set)
+    if self:is_valid() then
+        self.can_set_quality = can_set and true or false
+    end
+    return self
+end
+
 --- Set the enabled status of the recipe.
 -- @tparam boolean enabled Enable or disable the recipe
 -- @treturn self

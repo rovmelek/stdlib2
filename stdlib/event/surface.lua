@@ -7,13 +7,14 @@
 -- local surface = require('__stdlib2__/stdlib/event/surface').register_events()
 
 local Event = require('__stdlib2__/stdlib/event/event')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 
 local Surface = {
     __class = 'Surface',
     _new_surface_data = {}
 }
 setmetatable(Surface, require('__stdlib2__/stdlib/core'))
-local inspect = _ENV.inspect
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
 
 local merge_additional_data = require('__stdlib2__/stdlib/event/modules/merge_data')
 
@@ -40,11 +41,11 @@ end
 --- Remove data for a surface when it is deleted.
 -- @tparam table event event table containing the surface index
 function Surface.remove(event)
-    storage.surfaces[event.surface_index] = nil
+    Storage.get(Storage.KEYS.surfaces)[event.surface_index] = nil
 end
 
 function Surface.rename(event)
-    storage.surfaces[event.surface_index].name = event.new_name
+    Storage.get(Storage.KEYS.surfaces)[event.surface_index].name = event.new_name
 end
 
 function Surface.import(event)
@@ -60,7 +61,7 @@ end
 -- @tparam[opt=false] boolean overwrite the surface data
 function Surface.init(event, overwrite)
     -- Create the storage.surfaces table if it doesn't exisit
-    storage.surfaces = storage.surfaces or {}
+    Storage.get(Storage.KEYS.surfaces, Storage.new_table)
 
     --get a valid surface object or nil
     local surface = game.surfaces[event.surface_index]

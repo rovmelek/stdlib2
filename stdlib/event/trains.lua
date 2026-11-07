@@ -11,6 +11,7 @@ local Trains = {
 setmetatable(Trains, Trains)
 
 local Event = require('__stdlib2__/stdlib/event/event')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 local Surface = require('__stdlib2__/stdlib/area/surface')
 local Entity = require('__stdlib2__/stdlib/entity/entity')
 local table = require('__stdlib2__/stdlib/utils/table')
@@ -89,9 +90,10 @@ end
 -- Train ids are now renamed by `on_train_created`, so this only has to drop stale entries.
 -- @lfunction
 function Trains._on_locomotive_changed()
-    for id, train in pairs(storage._train_registry or {}) do
+    local registry = Storage.get(Storage.KEYS.train_registry) or {}
+    for id, train in pairs(registry) do
         if not train.valid then
-            storage._train_registry[id] = nil
+            registry[id] = nil
         end
     end
 end
@@ -152,24 +154,20 @@ end
 -- locomotive) are migrated to the `LuaTrain.id` keys.
 -- @return table a mapping of train id to LuaTrain object
 function Trains.create_train_registry()
-    storage._train_registry = {}
+    local registry = Storage.set(Storage.KEYS.train_registry, {})
 
     for _, info in pairs(Trains.find_filtered()) do
         if info.train.valid then
-            storage._train_registry[info.id] = info.train
+            registry[info.id] = info.train
         end
     end
 
-    return storage._train_registry
+    return registry
 end
 
 --- Handles `on_train_created`: renames the registry entries of the old trains and registers the new one.
 function Trains.on_train_created(event)
-    local registry = storage._train_registry
-    if not registry then
-        registry = {}
-        storage._train_registry = registry
-    end
+    local registry = Storage.get(Storage.KEYS.train_registry, Storage.new_table)
     local new_id = event.train.id
 
     for _, old_id in pairs { event.old_train_id_1, event.old_train_id_2 } do

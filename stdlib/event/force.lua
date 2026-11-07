@@ -16,9 +16,10 @@ local Force = {
 }
 setmetatable(Force, Force)
 
-local inspect = _ENV.inspect
+local inspect = require('__stdlib2__/stdlib/vendor/inspect')
 
 local Game = require('__stdlib2__/stdlib/game')
+local Storage = require('__stdlib2__/stdlib/utils/storage')
 local table = require('__stdlib2__/stdlib/utils/table')
 local merge_additional_data = require('__stdlib2__/stdlib/event/modules/merge_data')
 local assert, type = assert, type
@@ -78,7 +79,7 @@ end
 -- @tparam[opt] string|table event table or a string containing force name
 -- @tparam[opt=false] boolean overwrite the force data
 function Force.init(event, overwrite)
-    storage.forces = storage.forces or {}
+    Storage.get(Storage.KEYS.forces, Storage.new_table)
 
     local force = Game.get_force(event)
 
@@ -104,7 +105,7 @@ end
 
 --- When forces are merged, just remove the original forces data
 function Force.merged(event)
-    storage.forces[event.source_name] = nil
+    Storage.get(Storage.KEYS.forces)[event.source_name] = nil
 end
 
 function Force.register_init()

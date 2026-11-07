@@ -1,8 +1,53 @@
 ---------------------------------------------------------------------------------------------------
-Version: 2.0.2
-Date: 2024-00-00
-  Info:
-    - To be added...
+Version: 2.1.0
+Date: 2026-11-07
+  Major Features:
+    - Factorio 2.1 compatible.
+    - Tests run from a fresh clone with plain busted, the external faketorio package is no longer needed.
+  Features:
+    - Event.register accepts options.event_filter, a native EventFilter, and sets script.set_event_filter from the filters of all handlers. Event.Filters.native has builders for it.
+    - Entity data of entities with a unit number is removed when the entity is destroyed (Entity.options.auto_cleanup).
+    - New modules Utils.Stage, Utils.Deprecate and Utils.Storage (lists every storage key).
+    - Core._VERSION reports the loaded version, Core.require_version(min_version) checks it.
+    - config.no_globals stops stdlib2 from adding globals and defines.
+    - Recipe: add_category, remove_category, has_category, allow_quality, set_can_set_quality.
+    - Technology: set_research_trigger, set_unit, remove_effect for technologies, add_effect for any effect type.
+    - Item: set_fuel, add_fuel_category.
+    - Inventory: get_contents_by_name, get_contents_by_quality.
+    - Direction: all 16 directions, Direction.next and Direction.previous accept '16'.
+    - Orientation.to_direction accepts 'sixteen_way'.
+  Changes:
+    - game.write_file, game.table_to_json and game.remove_path are now helpers.*.
+    - Game.write_statistics uses the per surface statistics: Statistics/<tick>/<surface>/<force>/<kind>-<count_type>.json.
+    - The remote interface function write_storage was added, write_global is an alias for it.
+    - Train ids are LuaTrain.id and renamed from on_train_created. The registry in storage is rebuilt on init and configuration change, user data set with Trains.set_data does not survive the id change.
+    - Trains.find_filtered uses game.train_manager.get_trains.
+    - Recipes use the 2.x model: no normal and expensive, results and categories. Arguments for the expensive version are ignored with a one time log message, Recipe:make_difficult does nothing.
+    - Recipe:convert_results converts 1.x recipes (result, result_count, short ingredients, normal and expensive) to the 2.x format.
+    - Recipe:change_category sets categories.
+    - Technology pack functions do nothing for technologies that use a research_trigger.
+    - Entity.is_circuit_connected and Entity.count_circuit_connections use wire connectors.
+    - Inventory.copy_as_simple_stacks keeps quality and spoil_percent.
+    - Event: build events carry event.entity, the 1.x field created_entity is deprecated and can be switched off with Event.options.legacy_created_entity = false.
+    - Prototype group lists in Data now match the 2.1 prototype types.
+    - Pipes.covers no longer returns hr_version tables.
+    - Github actions run luacheck and busted for all branches and pull requests, the luacheckrc is pinned to a commit.
+  Bugfixes:
+    - Orientation.to_direction returned the wrong direction with the 16 value defines.direction.
+    - Position.direction_to returned the wrong direction for diagonal deltas.
+    - Event.register and Event.remove with a table of ids dropped filter, pattern and options.
+    - Event.Filters.entity no longer errors without a valid entity.
+    - Inventory.swap_inventory swapped every slot with the first slot of the source.
+    - Data:set_icon_at, Data:any_flag, Data:replace_icon and Category:replace had typos or checked the wrong thing.
+    - Data:copy no longer errors on recipes without results and renames a single minable result.
+    - Entity (Data) get_minable_item referenced Item out of scope.
+    - STDLIB.install_global_utils called functions that do not exist.
+    - Config.delete accepted an empty path.
+    - Event.Trains failed to load, its event name was generated without a name.
+  Deprecated:
+    - Event.options.legacy_created_entity (event.created_entity).
+    - Recipe expensive arguments and Recipe:make_difficult.
+    - STDLIB.reload_class, it never did anything.
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.1
 Date: 2024-10-29

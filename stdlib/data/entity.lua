@@ -37,7 +37,7 @@ function Entity:change_lab_inputs(name, add)
             self.inputs:remove(name)
         end
     else
-        log('Entity is not a lab.' .. _ENV.data_traceback())
+        log('Entity is not a lab.' .. require('__stdlib2__/stdlib/utils/globals').data_traceback())
     end
     return self
 end

@@ -87,6 +87,35 @@ function Inventory.copy_as_simple_stacks(src, dest, clear)
     return left_over
 end
 
+--- The contents of an inventory by item name, adding up all qualities.
+-- <p>`LuaInventory.get_contents()` returns an array of `{name, quality, count}` since 2.0.
+-- @tparam LuaInventory inventory
+-- @treturn table a dictionary of item name to total count
+function Inventory.get_contents_by_name(inventory)
+    local contents = {}
+    for _, item in pairs(inventory.get_contents()) do
+        contents[item.name] = (contents[item.name] or 0) + item.count
+    end
+    return contents
+end
+
+--- The contents of an inventory by item name and quality.
+-- @tparam LuaInventory inventory
+-- @treturn table a dictionary of item name to a dictionary of quality name to count
+function Inventory.get_contents_by_quality(inventory)
+    local contents = {}
+    for _, item in pairs(inventory.get_contents()) do
+        local by_quality = contents[item.name]
+        if not by_quality then
+            by_quality = {}
+            contents[item.name] = by_quality
+        end
+        local quality = item.quality or 'normal'
+        by_quality[quality] = (by_quality[quality] or 0) + item.count
+    end
+    return contents
+end
+
 --- Return a blueprint stack from either stack or blueprint_book
 -- @tparam LuaItemStack stack
 -- @tparam[opt] bool is_bp_setup

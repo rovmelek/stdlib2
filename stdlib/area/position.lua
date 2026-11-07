@@ -939,7 +939,7 @@ metatable = {
     __lt = Position.less_than, -- Is position1 less than position2.
     __le = Position.less_than_eq, -- Is position1 less than or equal to position2.
     __tostring = Position.to_string, -- Returns a string representation of the position
-    __concat = _ENV.concat, -- calls tostring on both sides of concact.
+    __concat = require('__stdlib2__/stdlib/utils/globals').concat, -- calls tostring on both sides of concact.
     __call = Position.new, -- copy the position.
     __debugline = [[<Position>{[}x={x},y={y}{]}]]
 }
